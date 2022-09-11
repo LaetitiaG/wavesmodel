@@ -3,7 +3,7 @@
 #############################################################################
 
 # Paths
-wdir = 'C:\\Users\\laeti\\Data\\wave_model\\'
+wdir = '../data/'
 datapath = wdir + 'data_MEEG\\raw\\'
 preprocpath = wdir + 'data_MEEG\\preproc\\'
 sensorspath = wdir + 'data_MEEG\\sensors\\' 

@@ -61,7 +61,7 @@ def read_filesName(path):
         
         # Add path 6subject and session info for these files
         filenames['session' + str(s+1)]['path'] = os.path.join(path,session)
-        filenames['session' + str(s+1)]['ses'] = os.path.split(filenames['session' + str(s+1)]['path'])[1]
+        filenames['session' + str(s+1)]['ses'] = os.path.split(filenames['session' + str(s+1)]['path'])[1] # = session
         filenames['session' + str(s+1)]['subj'] = os.path.split(os.path.split(filenames['session' + str(s+1)]['path'])[0])[1]
         
     return filenames

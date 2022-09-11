@@ -106,13 +106,13 @@ heightScreenPix = 1080 # pixels
 halfXscreenPix = int(widthScreenPix/2)
 halfYscreenPix = int(heightScreenPix/2)
 cmPerPixel = heightScreenCM/heightScreenPix # cm
-degsPerPixel =  np.degrees(2*np.arctan(heightScreenCM/(2*heightScreenPix*distanceFromScreen))) # deg of visual angle
+degsPerPixel = np.degrees(2*np.arctan(heightScreenCM/(2*heightScreenPix*distanceFromScreen))) # deg of visual angle
  
 # conditions
 hemis = ['lh', 'rh']
 
 # simulated signal parameters
-phi = np.pi/2; # initial phase so that center is not a (null) node for standing wave
+phi = np.pi/2 # initial phase so that center is not a (null) node for standing wave
 tfreq = 5 # temporal frequency of the wave_inducer: 5 Hz (cycles/s)
 sfreq = 0.05 # spatial freq wave_inducer: 0.05 cycles/mm #  with 5Hz it corresponds to v = 0.1 m/s wavelength = 20 mm
 A = 10e-9 # 10e-9 amplitude 10nA  because 10e-9 means (10 * 10^-9) # GM - but this was making the signla
@@ -136,10 +136,10 @@ for s in range(len(subjects)):
     subject = subjects[s]
     print(subject)  
     
-    # Read info from raw data
+    # Read info from raw data --- this is used only to find 'sfreq' (== sample rate)
     fname_dic = preproc.read_filesName(datapath + subject)
     sessions = list(fname_dic.keys())
-    sname = fname_dic['session1']['func'][0][:-4] + '_preproc_raw_tsss.fif'
+    sname = fname_dic['session1']['func'][0][:-4] + '_preproc_raw_tsss.fif' # replace 'run01.fif' by 'run01_preproc...tsss.fif'
     info = mne.io.read_info(os.path.join(preprocpath,fname_dic['session1']['subj'], fname_dic['session1']['ses'], sname))
     
     # Load retinotopy, visual phase and eccentricity for labels of both hemi
@@ -175,15 +175,17 @@ for s in range(len(subjects)):
         dist.append( distanceFromScreen* np.arctan(np.radians(eccen.get_fdata()[msk_label])) )# in cm
     
     # Time Parameters for the source signal
-    tstep = 1 / (info['sfreq']/5)
+    tstep = 1 / (info['sfreq']/5) # can be replace by 'sensor' files --> sensor[sfreq] == preproc[sfreq] / 5 -- 5 == 'decim'
     times = np.arange(2/tstep+1) * tstep
+
+    ################ TO READ
     
     ####  Create source activity based on stimulus
     ##############################################################################
     # Create screen grid: each screen voxel has its eccentricity value in cm
     widthArray = np.arange(-halfXscreenPix, halfXscreenPix, step=1, dtype=int)
     heightArray = np.arange(-halfYscreenPix, halfYscreenPix, step=1, dtype=int)
-    [x, y] = np.meshgrid(widthArray, heightArray); # coordinates in pixels
+    [x, y] = np.meshgrid(widthArray, heightArray) # coordinates in pixels
     eccen_screen = np.sqrt((x*cmPerPixel)**2 + (y*cmPerPixel)**2)
     theta_screen = np.rad2deg(2*np.arctan(y/ (x + np.sqrt(x**2 + y**2)) ))
     
@@ -234,7 +236,7 @@ for s in range(len(subjects)):
     # Loop across sessions to create simulation for each condition
     for ses in sessions:
         # Load forward model
-        fname = op.join(preprocpath, subject, 'forwardmodel', subject + '_' + ses + '_ico5-fwd.fif')
+        fname = op.join(preprocpath, subject, 'forwardmodel', subject + '_' + ses + '_ico5-fwd.fif') # check if can be replaced by sensors
         fwd = mne.read_forward_solution(fname)
         src = fwd['src'] # source space
         
