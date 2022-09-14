@@ -186,8 +186,9 @@ for s in range(len(subjects)):
     widthArray = np.arange(-halfXscreenPix, halfXscreenPix, step=1, dtype=int)
     heightArray = np.arange(-halfYscreenPix, halfYscreenPix, step=1, dtype=int)
     [x, y] = np.meshgrid(widthArray, heightArray) # coordinates in pixels
+    # what is eccen_screen and theta_screen ??
     eccen_screen = np.sqrt((x*cmPerPixel)**2 + (y*cmPerPixel)**2)
-    theta_screen = np.rad2deg(2*np.arctan(y/ (x + np.sqrt(x**2 + y**2)) ))
+    theta_screen = np.rad2deg(2*np.arctan(y/ (x + np.sqrt(x**2 + y**2))))
     
     # Create screen grid corresponding to putative cortical distance
     e_cort = e_mm(np.sqrt((x*degsPerPixel)**2+(y*degsPerPixel)**2)) # in mm of cortex
