@@ -131,8 +131,8 @@ rng = np.random.RandomState()
 ##############################################################################
 
 # loop across subject
-speed_label_all = {}; global_speed_all = {}
-for s in range(len(subjects)):   
+speed_label_all, global_speed_all = {}, {}
+for s in range(len(subjects)):
     subject = subjects[s]
     print(subject)  
     
