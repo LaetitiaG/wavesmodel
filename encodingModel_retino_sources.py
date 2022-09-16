@@ -22,6 +22,7 @@ import scipy
 from scipy.optimize import curve_fit
 from copy import deepcopy
 import matplotlib.animation as animation
+import utils
 
 ##############################################################################
 ### Functions ###
@@ -111,13 +112,17 @@ degsPerPixel = np.degrees(2*np.arctan(heightScreenCM/(2*heightScreenPix*distance
 # conditions
 hemis = ['lh', 'rh']
 
+# using the namedtuple data structure to store simulated signal parameters
+params = utils.simulation_params(5, 0.05, 10e-9, np.pi/2)
+
 # simulated signal parameters
-phi = np.pi/2 # initial phase so that center is not a (null) node for standing wave
-tfreq = 5 # temporal frequency of the wave_inducer: 5 Hz (cycles/s)
-sfreq = 0.05 # spatial freq wave_inducer: 0.05 cycles/mm #  with 5Hz it corresponds to v = 0.1 m/s wavelength = 20 mm
-A = 10e-9 # 10e-9 amplitude 10nA  because 10e-9 means (10 * 10^-9) # GM - but this was making the signla
+tfreq = params.freq_temp  # temporal frequency of the wave_inducer: 5 Hz (cycles/s)
+sfreq = params.freq_spacial  # spatial freq wave_inducer: 0.05 cycles/mm #  with 5Hz it corresponds to v = 0.1 m/s wavelength = 20 mm
+A = params.amplitude  # 10e-9 amplitude 10nA  because 10e-9 means (10 * 10^-9) # GM - but this was making the signla
     # go from +10 nA to -10nA, so the _wave_ amplitude (peak to trough) was actually 20 nA. If we want 
     # this "A" to be the wave amplitude then we have to divide by 2 in the equation
+phi = params.phase_offset  # initial phase so that center is not a (null) node for standing wave
+
 snr = 20
 noise_amp = A/snr # noise amplitude corresponding to snr
 rng = np.random.RandomState() 
