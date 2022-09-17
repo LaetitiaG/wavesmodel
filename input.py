@@ -4,8 +4,6 @@ from tkinter import messagebox as mb
 import utils
 
 
-## TO CHANGE : inherit class from toplevel/frame
-
 class MainFrame(ttk.Frame):
 
     def __init__(self, container):
@@ -19,6 +17,16 @@ class MainFrame(ttk.Frame):
         header = tk.Label(self, text='Add entries to generate simulations for given .fif file')
         header.pack(fill=tk.BOTH, expand=True)
         self.create_list_frame()
+        self.save_config_frame()
+
+    def save_config_frame(self):
+        var = tk.StringVar()
+        f = utils.add_file_input(self, 'Save location', var, lambda: var.set(utils.save_file()))
+        btn = tk.Button(f, text='SAVE', command=self.save_config)
+        btn.pack(side=tk.LEFT)
+
+    def save_config(self):
+        return # TODO save the entries in a file
 
     def create_list_frame(self):
         # create list for entries
@@ -76,6 +84,8 @@ class EntryWindow(tk.Toplevel):
         super(EntryWindow, self).__init__(parent)
         self.new = entry is None
         self.entry = utils.Entry() if self.new else entry
+        self.measuredStringVar = tk.StringVar(self, self.entry.measured)
+        self.retinoStringVar = tk.StringVar(self, self.entry.retino_map)
 
         self.txtInputs = []
         self.saveButton = tk.Button(self, text='SAVE', command=self.save_entry)
@@ -89,38 +99,23 @@ class EntryWindow(tk.Toplevel):
         f = ttk.Frame(self)
         f['padding'] = (5, 10)
         f.pack(fill=tk.BOTH)
-        self.add_file_input(f)
+        utils.add_file_input(f, 'Measured data', self.measuredStringVar, self.select_measured_file)
+        utils.add_file_input(f, 'Retinotopic map MRI', self.retinoStringVar, self.select_retino_file)
         self.add_text_inputs(f)
         self.saveButton.pack(side=tk.BOTTOM)
 
         if not self.new:
             self.load_entry(self.entry)
 
-    def add_file_input(self, mainFrame):
-        measuredFrame = tk.Frame(mainFrame)
-        lbl = tk.Label(measuredFrame, text='Measured data')
-        lbl.pack(side=tk.LEFT)
-        lbl = tk.Label(measuredFrame, text=self.entry.measured, bg='white')
-        lbl.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        load_button = tk.Button(measuredFrame, text='Browse', command=self.select_measured_file)
-        load_button.pack(side=tk.LEFT)
-        measuredFrame.pack(side=tk.TOP, fill=tk.Y, expand=True)
-        retinoFrame = tk.Frame(mainFrame)
-        lbl = tk.Label(retinoFrame, text='Retinotopic map MRI')
-        lbl.pack(side=tk.LEFT)
-        lbl = tk.Label(retinoFrame, text=self.entry.retino_map, bg='white')
-        lbl.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        load_button = tk.Button(retinoFrame, text='Browse', command=self.select_retino_file)
-        load_button.pack(side=tk.LEFT)
-        retinoFrame.pack(side=tk.TOP, fill=tk.Y, expand=True)
-
     def select_measured_file(self):
         f = utils.select_file(self.entry.measured)
         self.entry.measured = utils.Path(f)
+        self.measuredStringVar.set(self.entry.measured)
 
     def select_retino_file(self):
         f = utils.Path(utils.select_file(self.entry.retino_map))
         self.entry.retino_map = f
+        self.retinoStringVar.set(self.entry.retino_map)
 
     def add_text_inputs(self, mainFrame):
         for field in utils.simulation_params._fields:
