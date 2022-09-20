@@ -19,20 +19,22 @@ class Entry:
         self.params = simulation_params(*param_list)
 
 
-def select_file(dir=None):
+def select_file(dr=None):
     filetypes = (
         ('text files', '*.txt'),
         ('All files', '*.*')
     )
     return fd.askopenfilename(
         title='Open a config file',
-        initialdir='/' if dir is None else dir,
+        initialdir='/' if dr is None else dr,
         filetypes=filetypes)
 
-def save_file(dir=None):
+
+def save_file(dr=None):
     return fd.asksaveasfilename(
         title='Open a config file',
-        initialdir='/' if dir is None else dir)
+        initialdir='/' if dr is None else dr)
+
 
 class Listbox(tk.Listbox):
     def __init__(self, master=None, cnf={}, **kw):
