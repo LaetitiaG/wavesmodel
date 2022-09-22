@@ -146,7 +146,7 @@ for s in range(len(subjects)):
     sessions = list(fname_dic.keys())
     sname = fname_dic['session1']['func'][0][:-4] + '_preproc_raw_tsss.fif' # replace 'run01.fif' by 'run01_preproc...tsss.fif'
     info = mne.io.read_info(os.path.join(preprocpath,fname_dic['session1']['subj'], fname_dic['session1']['ses'], sname))
-    
+
     # Load retinotopy, visual phase and eccentricity for labels of both hemi
     inds_label = []; angle_label = []; eccen_label = []; dist = []; pRF_label = []
     for ind_h, hemi in enumerate(hemis):
@@ -158,24 +158,24 @@ for s in range(len(subjects)):
         # 1	V1 / 2	V2 / 3	V3 / 4	hV4 / 5	VO1 / 6	VO2 / 7	LO1 / 8	LO2 / 9	TO1
         # 10	TO2 / 11	V3b / 12	V3a
         lab_ind = 1
-        msk_label = retino_labels.get_fdata() == lab_ind 
+        msk_label = retino_labels.get_fdata() == lab_ind
         inds_label.append(np.where(np.squeeze(retino_labels.get_fdata()) == lab_ind)[0])
         
         # Load pRF values
         fname = op.join(subjects_dir, subject, 'prfs', hemi + '.inferred_angle.mgz')
         angle = mgh.load(fname)
-        angle_label.append( angle.get_fdata()[msk_label] )
-        
+        angle_label.append(angle.get_fdata()[msk_label])
+
         # Load angle within the selected label (in °VA from the fovea)
         fname = op.join(subjects_dir, subject, 'prfs', hemi + '.inferred_sigma.mgz')
         pRF = mgh.load(fname)
-        pRF_label.append( angle.get_fdata()[msk_label] )
-        
+        pRF_label.append(angle.get_fdata()[msk_label])
+
         # Load eccentricity within the selected label (in °VA from the fovea)
         fname = op.join(subjects_dir, subject, 'prfs', hemi + '.inferred_eccen.mgz')
         eccen = mgh.load(fname)
-        eccen_label.append( eccen.get_fdata()[msk_label] )
-        
+        eccen_label.append(eccen.get_fdata()[msk_label])
+
         # convert visual angle into cm (distance on screen)
         dist.append( distanceFromScreen* np.arctan(np.radians(eccen.get_fdata()[msk_label])) )# in cm
     
@@ -236,7 +236,7 @@ for s in range(len(subjects)):
     
     # Create stim for half left stimulated V1 = cond, other half = other cond
     wave_halfHalf = np.zeros(np.shape(wave_label[0])) 
-    wave_halfHalf[0] = wave_label[0][1];  wave_halfHalf[1] = wave_label[0][0]; # switch wave types
+    wave_halfHalf[0] = wave_label[0][1];  wave_halfHalf[1] = wave_label[0][0] # switch wave types
     wave_halfHalf[:,mask_quad,:] = wave_quad[:,mask_quad,:]
         
     # Loop across sessions to create simulation for each condition
