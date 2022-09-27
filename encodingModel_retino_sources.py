@@ -177,6 +177,7 @@ for s in range(len(subjects)):
         angle_label.append(angle.get_fdata()[msk_label])
 
         # Load angle within the selected label (in °VA from the fovea)
+        # unused
         fname = op.join(subjects_dir, subject, 'prfs', hemi + '.inferred_sigma.mgz')
         pRF = mgh.load(fname)
         pRF_label.append(angle.get_fdata()[msk_label])

@@ -7,6 +7,8 @@ from pathlib import Path
 simulation_params = namedtuple("simulation_params",
                                ["freq_temp", "freq_spacial", "amplitude", "phase_offset"])
 
+mri_paths = namedtuple("mri_paths",
+                       ["varea_l", "varea_r", "angle_l", "angle_r", "eccen_l", "eccen_r"])
 
 @dataclass
 class Entry:
