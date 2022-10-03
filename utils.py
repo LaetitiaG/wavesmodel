@@ -7,8 +7,11 @@ from pathlib import Path
 simulation_params = namedtuple("simulation_params",
                                ["freq_temp", "freq_spacial", "amplitude", "phase_offset"])
 
-mri_paths = namedtuple("mri_paths",
-                       ["varea_l", "varea_r", "angle_l", "angle_r", "eccen_l", "eccen_r"])
+# mri_paths = namedtuple("mri_paths",
+#                        ["varea_l", "varea_r", "angle_l", "angle_r", "eccen_l", "eccen_r"])
+
+# Pass tuple to each mri type. Must be in the same hemisphere order: (left, right)
+mri_paths = namedtuple("mri_paths", ["varea", "angle", "eccen"])
 
 @dataclass
 class Entry:

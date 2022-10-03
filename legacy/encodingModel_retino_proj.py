@@ -16,15 +16,12 @@ import preproc
 import mne 
 import numpy as np
 import matplotlib.pyplot as plt
-import nibabel.freesurfer.io as fsio
-import nibabel.freesurfer.mghformat as mgh
-import scipy
 
 ##############################################################################
 ### Parameters ###
 ##############################################################################
 
-from config import datapath, preprocpath, subjects, subjects_dir, resultspath, \
+from config import datapath, preprocpath, resultspath, \
     simupath, cond_waves, col_cond, cond_space
 
 # Subject

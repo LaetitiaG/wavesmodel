@@ -15,13 +15,9 @@ import os.path as op
 import preproc
 import mne
 import numpy as np
-import matplotlib.pyplot as plt
-import nibabel.freesurfer.io as fsio
 import nibabel.freesurfer.mghformat as mgh
 import scipy
-from scipy.optimize import curve_fit
 from copy import deepcopy
-import matplotlib.animation as animation
 import utils
 
 
@@ -98,7 +94,7 @@ def magnif_inv(X, M0, E2):
 ### Parameters ###
 ##############################################################################
 
-from config import datapath, preprocpath, subjects, subjects_dir, resultspath, simupath, cond_waves, cond_space
+from config import datapath, preprocpath, subjects, subjects_dir, resultspath, simupath, cond_waves
 
 plot_stc = False  # plot stc or not
 
@@ -152,6 +148,11 @@ for s in range(len(subjects)):
             :-4] + '_preproc_raw_tsss.fif'  # replace 'run01.fif' by 'run01_preproc...tsss.fif'
     info = mne.io.read_info(
         os.path.join(preprocpath, fname_dic['session1']['subj'], fname_dic['session1']['ses'], sname))
+    # Time Parameters for the source signal
+    # can be replace by 'sensor' files --> sensor[sfreq] == preproc[sfreq] / 5 -- 5 == 'decim'
+    tstep = 1 / (info['sfreq'] / 5)
+    times = np.arange(2 / tstep + 1) * tstep
+
 
     # Load retinotopy, visual phase and eccentricity for labels of both hemi
     inds_label = []
@@ -189,11 +190,6 @@ for s in range(len(subjects)):
 
         # convert visual angle into cm (distance on screen)
         dist.append(distanceFromScreen * np.arctan(np.radians(eccen.get_fdata()[msk_label])))  # in cm
-
-    # Time Parameters for the source signal
-    # can be replace by 'sensor' files --> sensor[sfreq] == preproc[sfreq] / 5 -- 5 == 'decim'
-    tstep = 1 / (info['sfreq'] / 5)
-    times = np.arange(2 / tstep + 1) * tstep
 
 
     ####  Create source activity based on stimulus
