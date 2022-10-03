@@ -1,7 +1,1 @@
-how does mgz file works ?
-    what is the use of freesurfer to create retinotopy, visual phase and eccentricity
-    what are the 'inferred' files: varea, angle, sigma, eccen
-
-explain the formulas of stim inducer (l216, l219, l222)
-
-how was generated the forward model file ? (in preproc)
+est-ce que on pourra donner des datas avec le code (pour les tests)?
