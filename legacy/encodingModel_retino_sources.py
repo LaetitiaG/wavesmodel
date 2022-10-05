@@ -243,7 +243,7 @@ for s in range(len(subjects)):
 
     # Create stim for half left stimulated V1 = cond, other half = other cond
     wave_halfHalf = np.zeros(np.shape(wave_label[0]))
-    wave_halfHalf[0] = wave_label[0][1];
+    wave_halfHalf[0] = wave_label[0][1]
     wave_halfHalf[1] = wave_label[0][0]  # switch wave types
     wave_halfHalf[:, mask_quad, :] = wave_quad[:, mask_quad, :]
 
