@@ -3,11 +3,19 @@ import mne
 import nibabel.freesurfer.mghformat as mgh
 import numpy as np
 import utils
+from copy import deepcopy
+from collections import namedtuple
 
 ## Constant to acces lh and rh in tuple
 LEFT_HEMI = 0
 RIGHT_HEMI = 1
 
+screen_params = namedtuple("screen_params",
+                           ["width",  # pixel
+                            "height",  # pixel
+                            "distanceFrom",  # cm
+                            "heightCM"  # cm
+                            ])
 
 def apply_tuple(t, f):
     x, y = t
@@ -54,12 +62,16 @@ def cort_eccen_mm(x):
     return np.sign(x) * (17.3 * np.abs(x) / (np.abs(x) + 0.75))
 
 
-def create_screen_grid(distanceFromScreen, heightScreenCM, widthScreenPix, heightScreenPix):
+def create_screen_grid(screen_config):
     """
     Returns 2 screen grids:
     eccen_screen: each screen voxel has its eccentricity value in cm
     e_cort: corresponds to putative cortical distance
     """
+    widthScreenPix = screen_config.width
+    heightScreenPix = screen_config.height
+    heightScreenCM = screen_config.heightCM
+    distanceFromScreen = screen_config.distanceFrom
     halfXscreenPix, halfYscreenPix = int(widthScreenPix / 2), int(heightScreenPix / 2)
     cmPerPixel = heightScreenCM / heightScreenPix  # cm
     degsPerPixel = np.degrees(
@@ -74,8 +86,11 @@ def create_screen_grid(distanceFromScreen, heightScreenCM, widthScreenPix, heigh
     return eccen_screen, e_cort
 
 
-def create_stim_inducer(heightScreenPix, widthScreenPix, times, params, e_cort):
-    sin_inducer = np.zeros((3, len(times), heightScreenPix, widthScreenPix))
+def create_stim_inducer(screen_config, times, params, e_cort):
+    """
+    Recreate stim inducer
+    """
+    sin_inducer = np.zeros((3, len(times), screen_config.height, screen_config.width))
     for ind_t, t in enumerate(times):
         # traveling wave (out)
         sin_inducer[0, ind_t] = params.amplitude * \
@@ -95,6 +110,9 @@ def create_stim_inducer(heightScreenPix, widthScreenPix, times, params, e_cort):
 
 
 def map_stim_value(times, sin_inducer, eccen_screen, eccen_label):
+    """
+    Map stim values on voxel label (for lh and rh labels)
+    """
     wave_label = np.zeros((3, len(eccen_label), len(times)))
     for ind_l, l in enumerate(eccen_label):
         if l > np.max(eccen_screen):
@@ -107,12 +125,30 @@ def map_stim_value(times, sin_inducer, eccen_screen, eccen_label):
     return wave_label
 
 
-def main(sensorsFile, mri_paths):
+def create_wave_stims(wave_label, angle_label, eccen_label):
+    # Create wave stim for quadrant condition (session 1)
+    wave_quad = deepcopy(wave_label[LEFT_HEMI])
+    mask_quad = (angle_label[LEFT_HEMI] > 90 + 5) & (angle_label[LEFT_HEMI] < 180 - 5)
+    mask = np.invert(mask_quad)  # right lower quadrant
+    wave_quad[:, mask, :] = 0
+
+    # Create wave stim for foveal condition (session 2)
+    wave_fov = apply_tuple(wave_label, deepcopy)
+    wave_fov[LEFT_HEMI][:, eccen_label[0] > 5, :] = 0  # lh
+    wave_fov[RIGHT_HEMI][:, eccen_label[1] > 5, :] = 0  # rh
+
+    # Create stim for half left stimulated V1 = cond, other half = other cond
+    wave_halfHalf = np.zeros(np.shape(wave_label[LEFT_HEMI]))
+    wave_halfHalf[0] = wave_label[LEFT_HEMI][1]
+    wave_halfHalf[1] = wave_label[RIGHT_HEMI][0]  # switch wave types
+    wave_halfHalf[:, mask_quad, :] = wave_quad[:, mask_quad, :]
+
+    return wave_quad, wave_fov, wave_halfHalf
+
+
+def generate_simulation(sensorsFile, mri_paths):
     ## Magic numbers -- must be parameters later
-    distanceFromScreen = 78  # cm
-    heightScreenCM = 44.2  # cm
-    widthScreenPix = 1920  # pixels
-    heightScreenPix = 1080  # pixels
+    screen_config = screen_params(1920, 1080, 78, 44.2)
     params = utils.simulation_params(5, 0.05, 10e-9, np.pi / 2)
     snr = 20
     noise_amp = params.amplitude / snr  # noise amplitude corresponding to snr
@@ -125,14 +161,13 @@ def main(sensorsFile, mri_paths):
 
     inds_label, angle_label, eccen_label = load_labels(mri_paths)
 
-    eccen_screen, e_cort = create_screen_grid(distanceFromScreen, heightScreenCM, widthScreenPix, heightScreenPix)
+    eccen_screen, e_cort = create_screen_grid(screen_config)
     # Recreate stim inducer
-    sin_inducer = create_stim_inducer(heightScreenPix, widthScreenPix, times, params, e_cort)
+    sin_inducer = create_stim_inducer(screen_config, times, params, e_cort)
 
-    # Map stim values on voxel label (for lh and rh labels)
     def map_stim(eccen_lbl): map_stim_value(times, sin_inducer, eccen_screen, eccen_lbl)
-
     wave_label = apply_tuple(eccen_label, map_stim)
+    wave_quad, wave_fov, wave_halfHalf = create_wave_stims(wave_label, angle_label, eccen_label)
 
 
 if __name__ == '__main__':
