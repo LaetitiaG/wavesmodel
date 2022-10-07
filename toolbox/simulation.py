@@ -2,7 +2,7 @@ import sys
 import mne
 import nibabel.freesurfer.mghformat as mgh
 import numpy as np
-import utils
+import tools
 from copy import deepcopy
 from collections import namedtuple
 
@@ -142,8 +142,8 @@ def create_wave_stims(wave_label, angle_label, eccen_label):
 
 def generate_simulation(sensorsFile, mri_paths):
     ## Magic numbers -- must be parameters later
-    screen_config = utils.screen_params(1920, 1080, 78, 44.2)
-    params = utils.simulation_params(5, 0.05, 10e-9, np.pi / 2)
+    screen_config = tools.screen_params(1920, 1080, 78, 44.2)
+    params = tools.simulation_params(5, 0.05, 10e-9, np.pi / 2)
     snr = 20
     noise_amp = params.amplitude / snr  # noise amplitude corresponding to snr
     rng = np.random.RandomState()

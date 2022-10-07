@@ -1,7 +1,9 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox as mb
+import tools
 import utils
+from pathlib import Path
 
 
 class MainFrame(ttk.Frame):
@@ -21,7 +23,7 @@ class MainFrame(ttk.Frame):
 
     def save_config_frame(self):
         var = tk.StringVar()
-        f = utils.add_file_input(self, 'Save location', var, lambda: var.set(utils.save_file()))
+        f = tools.add_file_input(self, 'Save location', var, lambda: var.set(tools.save_file()))
         btn = tk.Button(f, text='SAVE', command=self.save_config)
         btn.pack(side=tk.LEFT)
 
@@ -33,7 +35,7 @@ class MainFrame(ttk.Frame):
         list_frame = ttk.Frame(self)
         list_frame['padding'] = (5, 10)
         list_frame.pack(expand=True, fill=tk.BOTH)
-        self.listbox = utils.Listbox(list_frame, listvariable=self.list_items, height=10)
+        self.listbox = tools.Listbox(list_frame, listvariable=self.list_items, height=10)
         self.listbox.pack(expand=True, side=tk.LEFT, fill=tk.BOTH)
 
         button_frame = tk.Frame(list_frame)
@@ -75,7 +77,7 @@ class MainFrame(ttk.Frame):
             self.listbox.delete(idx)
 
     def load_config_file(self):
-        self.config_file = utils.select_file(self.config_file)
+        self.config_file = tools.select_file(self.config_file)
 
 
 class EntryWindow(tk.Toplevel):
@@ -99,8 +101,8 @@ class EntryWindow(tk.Toplevel):
         f = ttk.Frame(self)
         f['padding'] = (5, 10)
         f.pack(fill=tk.BOTH)
-        utils.add_file_input(f, 'Measured data', self.measuredStringVar, self.select_measured_file)
-        utils.add_file_input(f, 'Retinotopic map MRI', self.retinoStringVar, self.select_retino_file)
+        tools.add_file_input(f, 'Measured data', self.measuredStringVar, self.select_measured_file)
+        tools.add_file_input(f, 'Retinotopic map MRI', self.retinoStringVar, self.select_retino_file)
         self.add_text_inputs(f)
         self.saveButton.pack(side=tk.BOTTOM)
 
@@ -108,12 +110,12 @@ class EntryWindow(tk.Toplevel):
             self.load_entry(self.entry)
 
     def select_measured_file(self):
-        f = utils.select_file(self.entry.measured)
-        self.entry.measured = utils.Path(f)
+        f = tools.select_file(self.entry.measured)
+        self.entry.measured = Path(f)
         self.measuredStringVar.set(self.entry.measured)
 
     def select_retino_file(self):
-        f = utils.Path(utils.select_file(self.entry.retino_map))
+        f = Path(tools.select_file(self.entry.retino_map))
         self.entry.retino_map = f
         self.retinoStringVar.set(self.entry.retino_map)
 
@@ -156,6 +158,10 @@ class App(tk.Tk):
         gui.pack(fill=tk.BOTH, expand=True)
 
 
-if __name__ == "__main__":
+def run():
     app = App()
     app.mainloop()
+
+
+if __name__ == "__main__":
+    run()

@@ -1,6 +1,6 @@
 import unittest
 
-from utils import mri_paths, simulation_params
+from tools import mri_paths, simulation_params
 from toolbox.simulation import load_labels, create_stim_inducer
 from pathlib import Path
 import numpy as np
