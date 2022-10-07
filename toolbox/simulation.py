@@ -10,12 +10,6 @@ from collections import namedtuple
 LEFT_HEMI = 0
 RIGHT_HEMI = 1
 
-screen_params = namedtuple("screen_params",
-                           ["width",  # pixel
-                            "height",  # pixel
-                            "distanceFrom",  # cm
-                            "heightCM"  # cm
-                            ])
 
 def apply_tuple(t, f):
     x, y = t
@@ -148,7 +142,7 @@ def create_wave_stims(wave_label, angle_label, eccen_label):
 
 def generate_simulation(sensorsFile, mri_paths):
     ## Magic numbers -- must be parameters later
-    screen_config = screen_params(1920, 1080, 78, 44.2)
+    screen_config = utils.screen_params(1920, 1080, 78, 44.2)
     params = utils.simulation_params(5, 0.05, 10e-9, np.pi / 2)
     snr = 20
     noise_amp = params.amplitude / snr  # noise amplitude corresponding to snr
