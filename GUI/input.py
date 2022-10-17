@@ -105,26 +105,27 @@ class EntryWindow(tk.Toplevel):
         f['padding'] = (5, 10)
         f.pack(fill=tk.BOTH)
         tools.add_file_input(f, 'Measured data', self.measuredStringVar, tools.select_file)
-        self.add_text_inputs(f, utils.simulation_params)
-        self.saveButton.pack(side=tk.BOTTOM)
-        if not self.new:
-            self.load_entry(self.entry)
 
-        simframe = ttk.Frame(notebk)
-        simframe.pack(fill=tk.BOTH)
+        simulation_frame = ttk.Frame(notebk)
+        self.add_text_inputs(simulation_frame, utils.simulation_params)
+        simulation_frame.pack(fill=tk.BOTH)
 
-        screenframe = ttk.Frame(notebk)
-        screenframe.pack(fill=tk.BOTH)
+        screen_frame = ttk.Frame(notebk)
+        self.add_text_inputs(screen_frame, utils.screen_params)
+        screen_frame.pack(fill=tk.BOTH)
 
-        mriframe = ttk.Frame(notebk)
-
-        tools.add_file_input(mriframe, 'Retinotopic map MRI', self.retinoStringVar, tools.select_file)
-        mriframe.pack(fill=tk.BOTH)
+        mri_frame = ttk.Frame(notebk)
+        tools.add_file_input(mri_frame, 'Retinotopic map MRI', self.retinoStringVar, tools.select_file)
+        mri_frame.pack(fill=tk.BOTH)
 
         notebk.add(f, text='First version')
-        notebk.add(simframe, text='Simulation')
-        notebk.add(screenframe, text='Screen')
-        notebk.add(mriframe, text='MRI')
+        notebk.add(simulation_frame, text='Simulation')
+        notebk.add(screen_frame, text='Screen')
+        notebk.add(mri_frame, text='MRI')
+
+        self.saveButton.pack(side=tk.BOTTOM)
+        if not self.new:
+            self.load_entry()
 
     def add_text_inputs(self, mainFrame, params):
         ipt = []
@@ -138,15 +139,23 @@ class EntryWindow(tk.Toplevel):
             f.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.txtInputs[params.__name__] = ipt
 
-    def load_entry(self, entry):
-        params = entry.params
-        if params is None:
+    def load_entry(self):
+        self.__load_entry_param(self.entry.simulation_params)
+        self.__load_entry_param(self.entry.screen_params)
+
+    def __load_entry_param(self, param):
+        if param is None:
             return
-        for i in range(len(params)):
-            self.txtInputs[i].insert(0, params[i])
+        sim_input = self.txtInputs[param.__class__.__name__]
+        for i in range(len(param)):
+            sim_input[i].insert(0, param[i])
+
+    def __get_param(self, param):
+        return param(*map(lambda x: x.get(), self.txtInputs[param.__name__]))
 
     def save_entry(self):
-        self.entry.params = utils.simulation_params(*map(lambda x: x.get(), self.txtInputs))
+        self.entry.simulation_params = self.__get_param(utils.simulation_params)
+        self.entry.screen_params = self.__get_param(utils.screen_params)
         self.entry.measured = Path(self.measuredStringVar.get())
         self.entry.retino_map = Path(self.retinoStringVar.get())
         self.destroy()
