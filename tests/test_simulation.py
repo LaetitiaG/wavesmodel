@@ -1,6 +1,6 @@
 import unittest
 
-from tools import mri_paths, simulation_params
+from utils import mri_paths, simulation_params
 from toolbox.simulation import load_labels, create_stim_inducer
 from pathlib import Path
 import numpy as np
@@ -11,11 +11,11 @@ class TestLoadLabels(unittest.TestCase):
     Test function for simulation.load_labels
     Needs server to be mounted on Z: to work
     """
-    subj_dir = Path('Z:\DugueLab_Research\Current_Projects\LGr_GM_JW_DH_LD_WavesModel'
-                    '\Experiments\Data\data_MRI\preproc/freesurfer/2XXX72\prfs')
+    subj_dir = Path('Z:/DugueLab_Research/Current_Projects/LGr_GM_JW_DH_LD_WavesModel'
+                    '/Experiments/Data/data_MRI/preproc/freesurfer/2XXX72/prfs')
     paths = mri_paths((Path(subj_dir / 'lh.inferred_varea.mgz'), Path(subj_dir / 'rh.inferred_varea.mgz')),
-                                (Path(subj_dir / 'lh.inferred_angle.mgz'), Path(subj_dir / 'rh.inferred_angle.mgz')),
-                                (Path(subj_dir / 'lh.inferred_eccen.mgz'), Path(subj_dir / 'rh.inferred_eccen.mgz')))
+                      (Path(subj_dir / 'lh.inferred_angle.mgz'), Path(subj_dir / 'rh.inferred_angle.mgz')),
+                      (Path(subj_dir / 'lh.inferred_eccen.mgz'), Path(subj_dir / 'rh.inferred_eccen.mgz')))
 
     def test_return_len(self):
         ret = load_labels(self.paths)

@@ -1,5 +1,5 @@
-from configparser import ConfigParser
-from tools import simulation_params, screen_params
+from configparser import SafeConfigParser
+from utils import simulation_params, screen_params
 from dataclasses import dataclass
 
 
@@ -12,7 +12,7 @@ class Config:
 def create_config_file(config):
     sim = config.simulation_params
     screen = config.screen_params
-    config_obj = ConfigParser()
+    config_obj = SafeConfigParser()
 
     config_obj["SIMULATION"] = sim._asdict()
     config_obj["SCREEN"] = screen._asdict()
@@ -25,7 +25,7 @@ def write_config(config_object):
 
 
 def read_config(filepath):
-    config_object = ConfigParser()
+    config_object = SafeConfigParser()
     config_object.read(filepath)
     simulation = config_object["SIMULATION"]
     sim_params = simulation_params(*simulation.values())

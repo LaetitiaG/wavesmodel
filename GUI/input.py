@@ -12,7 +12,8 @@ class MainFrame(ttk.Frame):
         super(MainFrame, self).__init__(container)
         self.listbox = None
         self.list_items = tk.Variable(value=[])
-        self.config_file = None
+        self.save_file = tk.StringVar(self)
+        self.config_file = tk.StringVar(self, Path('/'))
         self.main_window()
 
     def main_window(self):
@@ -22,8 +23,8 @@ class MainFrame(ttk.Frame):
         self.save_config_frame()
 
     def save_config_frame(self):
-        var = tk.StringVar()
-        f = tools.add_file_input(self, 'Save location', var, lambda: var.set(tools.save_file()))
+        save_file = tk.StringVar()
+        f = tools.add_file_input(self, 'Save location', save_file, tools.save_file)
         btn = tk.Button(f, text='SAVE', command=self.save_config)
         btn.pack(side=tk.LEFT)
 
@@ -52,7 +53,6 @@ class MainFrame(ttk.Frame):
 
     def edit_entry(self):
         idx = self.listbox.curselection()
-        print(idx)
         if not idx:
             mb.showerror('Error', 'You must select an entry to edit')
         else:
@@ -69,7 +69,6 @@ class MainFrame(ttk.Frame):
 
     def remove_entry(self):
         idx = self.listbox.curselection()
-        print(idx)
         if not idx:
             mb.showerror('Error', 'You must select an entry to delete')
         elif mb.askyesno('Verify', 'Are you sure you want to delete the selected entry?'):
@@ -77,7 +76,8 @@ class MainFrame(ttk.Frame):
             self.listbox.delete(idx)
 
     def load_config_file(self):
-        self.config_file = tools.select_file(self.config_file)
+        filepath = tools.save_file(self, self.config_file)
+        self.config_file.set(filepath)
 
 
 class EntryWindow(tk.Toplevel):
@@ -89,7 +89,7 @@ class EntryWindow(tk.Toplevel):
         self.measuredStringVar = tk.StringVar(self, self.entry.measured)
         self.retinoStringVar = tk.StringVar(self, self.entry.retino_map)
 
-        self.txtInputs = []
+        self.txtInputs = {}
         self.saveButton = tk.Button(self, text='SAVE', command=self.save_entry)
         self.window_init()
 
@@ -98,44 +98,57 @@ class EntryWindow(tk.Toplevel):
         self.title(f'{title_base} entry')
         self.attributes('-topmost', 1)
 
-        f = ttk.Frame(self)
+        notebk = ttk.Notebook(self)
+        notebk.pack(fill=tk.BOTH)
+
+        f = ttk.Frame(notebk)
         f['padding'] = (5, 10)
         f.pack(fill=tk.BOTH)
-        tools.add_file_input(f, 'Measured data', self.measuredStringVar, self.select_measured_file)
-        tools.add_file_input(f, 'Retinotopic map MRI', self.retinoStringVar, self.select_retino_file)
-        self.add_text_inputs(f)
+        tools.add_file_input(f, 'Measured data', self.measuredStringVar, tools.select_file)
+        self.add_text_inputs(f, utils.simulation_params)
         self.saveButton.pack(side=tk.BOTTOM)
-
         if not self.new:
             self.load_entry(self.entry)
 
-    def select_measured_file(self):
-        f = tools.select_file(self.entry.measured)
-        self.entry.measured = Path(f)
-        self.measuredStringVar.set(self.entry.measured)
+        simframe = ttk.Frame(notebk)
+        simframe.pack(fill=tk.BOTH)
 
-    def select_retino_file(self):
-        f = Path(tools.select_file(self.entry.retino_map))
-        self.entry.retino_map = f
-        self.retinoStringVar.set(self.entry.retino_map)
+        screenframe = ttk.Frame(notebk)
+        screenframe.pack(fill=tk.BOTH)
 
-    def add_text_inputs(self, mainFrame):
-        for field in utils.simulation_params._fields:
+        mriframe = ttk.Frame(notebk)
+
+        tools.add_file_input(mriframe, 'Retinotopic map MRI', self.retinoStringVar, tools.select_file)
+        mriframe.pack(fill=tk.BOTH)
+
+        notebk.add(f, text='First version')
+        notebk.add(simframe, text='Simulation')
+        notebk.add(screenframe, text='Screen')
+        notebk.add(mriframe, text='MRI')
+
+    def add_text_inputs(self, mainFrame, params):
+        ipt = []
+        for field in params._fields:
             f = tk.Frame(mainFrame)
             lbl = tk.Label(f, text=field)
             txt = ttk.Entry(f)
-            self.txtInputs.append(txt)
+            ipt.append(txt)
             lbl.pack(side=tk.LEFT)
             txt.pack(side=tk.LEFT, fill=tk.BOTH)
             f.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.txtInputs[params.__name__] = ipt
 
     def load_entry(self, entry):
         params = entry.params
+        if params is None:
+            return
         for i in range(len(params)):
             self.txtInputs[i].insert(0, params[i])
 
     def save_entry(self):
-        self.entry.params = utils.simulation_params._make(list(map(lambda x: x.get(), self.txtInputs)))
+        self.entry.params = utils.simulation_params(*map(lambda x: x.get(), self.txtInputs))
+        self.entry.measured = Path(self.measuredStringVar.get())
+        self.entry.retino_map = Path(self.retinoStringVar.get())
         self.destroy()
 
     def get_entry(self):
