@@ -4,7 +4,7 @@ from tkinter import messagebox as mb
 import tools
 import utils
 from pathlib import Path
-
+from toolbox import configIO
 
 class MainFrame(ttk.Frame):
 
@@ -89,6 +89,9 @@ class EntryWindow(tk.Toplevel):
         self.measuredStringVar = tk.StringVar(self, self.entry.measured)
         self.retinoStringVar = tk.StringVar(self, self.entry.retino_map)
 
+        self.config_obj = configIO.get_config_object('./simulation.ini')
+        self.list_items = tk.Variable(value=self.config_obj.sections())
+
         self.txtInputs = {}
         self.saveButton = tk.Button(self, text='SAVE', command=self.save_entry)
         self.window_init()
@@ -107,6 +110,9 @@ class EntryWindow(tk.Toplevel):
         tools.add_file_input(f, 'Measured data', self.measuredStringVar, tools.select_file)
 
         simulation_frame = ttk.Frame(notebk)
+        listbox = tk.Listbox(simulation_frame, height=10, listvariable=self.list_items)
+        listbox.pack(fill=tk.BOTH)
+        listbox.bind('<Double-1>', self.load_sim)
         self.add_text_inputs(simulation_frame, utils.simulation_params)
         simulation_frame.pack(fill=tk.BOTH)
 
@@ -126,6 +132,14 @@ class EntryWindow(tk.Toplevel):
         self.saveButton.pack(side=tk.BOTTOM)
         if not self.new:
             self.load_entry()
+
+    def load_sim(self, event):
+        widget = event.widget
+        idx = widget.curselection()[0]
+        sel = self.list_items.get()[idx]
+        simulation = self.config_obj[sel].values()
+        self.entry.simulation_params = utils.simulation_params(*simulation)
+        self.load_entry()
 
     def add_text_inputs(self, mainFrame, params):
         ipt = []
@@ -148,6 +162,7 @@ class EntryWindow(tk.Toplevel):
             return
         sim_input = self.txtInputs[param.__class__.__name__]
         for i in range(len(param)):
+            sim_input[i].delete(0, tk.END)
             sim_input[i].insert(0, param[i])
 
     def __get_param(self, param):
