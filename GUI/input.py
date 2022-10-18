@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox as mb
+from tkinter import simpledialog
 import tools
 import utils
 from pathlib import Path
@@ -89,7 +90,7 @@ class EntryWindow(tk.Toplevel):
         self.measuredStringVar = tk.StringVar(self, self.entry.measured)
         self.retinoStringVar = tk.StringVar(self, self.entry.retino_map)
 
-        self.config_obj = configIO.get_config_object('./simulation.ini')
+        self.config_obj = configIO.get_config_object('./config/simulation.ini')
         self.list_items = tk.Variable(value=self.config_obj.sections())
 
         self.txtInputs = {}
@@ -109,10 +110,15 @@ class EntryWindow(tk.Toplevel):
         f.pack(fill=tk.BOTH)
         tools.add_file_input(f, 'Measured data', self.measuredStringVar, tools.select_file)
 
+        # handle notebook frame sepratly as herited class (for 3 params)
         simulation_frame = ttk.Frame(notebk)
-        listbox = tk.Listbox(simulation_frame, height=10, listvariable=self.list_items)
+        lbframe = tk.Frame(simulation_frame)
+        listbox = tk.Listbox(lbframe, height=10, listvariable=self.list_items)
         listbox.pack(fill=tk.BOTH)
         listbox.bind('<Double-1>', self.load_sim)
+        config_button = tk.Button(lbframe, text='Save config', command=self.save_config)
+        config_button.pack()
+        lbframe.pack(fill=tk.BOTH, side=tk.LEFT)
         self.add_text_inputs(simulation_frame, utils.simulation_params)
         simulation_frame.pack(fill=tk.BOTH)
 
@@ -167,6 +173,12 @@ class EntryWindow(tk.Toplevel):
 
     def __get_param(self, param):
         return param(*map(lambda x: x.get(), self.txtInputs[param.__name__]))
+
+    def save_config(self):
+        name = simpledialog.askstring(self, None)
+        sim_params = self.__get_param(utils.simulation_params)
+        configIO.create_config_file(self.config_obj, sim_params, name)
+        self.list_items.set(self.config_obj.sections())
 
     def save_entry(self):
         self.entry.simulation_params = self.__get_param(utils.simulation_params)

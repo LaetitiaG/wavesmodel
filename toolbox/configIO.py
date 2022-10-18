@@ -1,3 +1,4 @@
+import configparser
 from configparser import SafeConfigParser
 from utils import simulation_params, screen_params
 from dataclasses import dataclass
@@ -10,18 +11,13 @@ class Config:
     screen_params: screen_params
 
 
-def create_config_file(config):
-    sim = config.simulation_params
-    screen = config.screen_params
-    config_obj = SafeConfigParser()
-
-    config_obj["SIMULATION"] = sim._asdict()
-    config_obj["SCREEN"] = screen._asdict()
-    return config_obj
+def create_config_file(config_obj, sim, name):
+    config_obj[name] = sim._asdict()
+    write_config(config_obj)
 
 
 def write_config(config_object):
-    with open('../simulation.ini', 'w') as config:
+    with open('./config/simulation.ini', 'w') as config:
         config_object.write(config)
 
 
@@ -35,7 +31,10 @@ def read_config(filepath):
 
 def get_config_object(filepath):
     config_object = SafeConfigParser()
-    config_object.read(filepath)
+    try:
+        config_object.read(filepath)
+    except configparser.DuplicateSectionError:
+        print("ERROR: config file is invalid")
     return config_object
 
 
