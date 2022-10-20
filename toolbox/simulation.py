@@ -2,13 +2,17 @@ import sys
 import mne
 import nibabel.freesurfer.mghformat as mgh
 import numpy as np
-import tools
 from copy import deepcopy
+import utils
 from collections import namedtuple
 
 ## Constant to acces lh and rh in tuple
 LEFT_HEMI = 0
 RIGHT_HEMI = 1
+
+TRAV_OUT = "trav_out"
+STANDING = "standing"
+TRAV_IN = "trav_in"
 
 
 def apply_tuple(t, f):
@@ -80,26 +84,30 @@ def create_screen_grid(screen_config):
     return eccen_screen, e_cort
 
 
-def create_stim_inducer(screen_config, times, params, e_cort):
+def create_stim_inducer(screen_config, times, params, e_cort, stim):
     """
     Recreate stim inducer
     """
-    sin_inducer = np.zeros((3, len(times), screen_config.height, screen_config.width))
-    for ind_t, t in enumerate(times):
-        # traveling wave (out)
-        sin_inducer[0, ind_t] = params.amplitude * \
-                                np.sin(2 * np.pi * params.freq_spacial *
-                                       e_cort - 2 * np.pi * params.freq_temp * t + params.phase_offset)
+    sin_inducer = np.zeros((len(times), screen_config.height, screen_config.width))
 
-        # standing wave
-        sin_inducer[1, ind_t] = params.amplitude * \
-                                np.sin(2 * np.pi * params.freq_spacial * e_cort + params.phase_offset) * \
-                                np.cos(2 * np.pi * params.freq_temp * t)
-
-        # traveling wave (in)
-        sin_inducer[2, ind_t] = params.amplitude * \
-                                np.sin(2 * np.pi * params.freq_spacial *
-                                       e_cort + 2 * np.pi * params.freq_temp * t + params.phase_offset)
+    def func(time):
+        if stim == TRAV_OUT:
+            return params.amplitude * \
+                           np.sin(2 * np.pi * params.freq_spacial *
+                                  e_cort - 2 * np.pi * params.freq_temp * time + params.phase_offset)
+        elif stim == STANDING:
+            return params.amplitude * \
+                             np.sin(2 * np.pi * params.freq_spacial * e_cort + params.phase_offset) * \
+                             np.cos(2 * np.pi * params.freq_temp * time)
+        elif stim == TRAV_IN:
+            return params.amplitude * \
+                             np.sin(2 * np.pi * params.freq_spacial *
+                                    e_cort + 2 * np.pi * params.freq_temp * time + params.phase_offset)
+        else:
+            raise ValueError('Incorrect stimulation value')  # needs to be InputStimError
+    # apply func on times
+    for idx, time in enumerate(times):
+        sin_inducer[idx] = func(time)
     return sin_inducer
 
 
@@ -140,13 +148,23 @@ def create_wave_stims(wave_label, angle_label, eccen_label):
     return wave_quad, wave_fov, wave_halfHalf
 
 
-def generate_simulation(sensorsFile, mri_paths):
-    ## Magic numbers -- must be parameters later
-    screen_config = tools.screen_params(1920, 1080, 78, 44.2)
-    params = tools.simulation_params(5, 0.05, 10e-9, np.pi / 2)
-    snr = 20
-    noise_amp = params.amplitude / snr  # noise amplitude corresponding to snr
-    rng = np.random.RandomState()
+def create_stc(forward_model, times, tstep):
+    # Load forward model
+    fwd = mne.read_forward_solution(forward_model)
+    src = fwd['src']  # source space
+
+    # Create empty stc
+    labels = mne.read_labels_from_annot(subject, subjects_dir=subjects_dir, parc='aparc.a2009s')  # aparc.DKTatlas
+    n_labels = len(labels)
+    signal = np.zeros((n_labels, len(times)))
+    return mne.simulation.simulate_stc(fwd['src'], labels, signal, times[0], tstep,
+                                       value_fun=lambda x: x)  # labels or label_sel
+
+
+def generate_simulation(sensorsFile, mri_paths, forward_model, stim):
+    # Magic numbers -- must be parameters later
+    screen_config = utils.screen_params(1920, 1080, 78, 44.2)
+    params = utils.simulation_params(5, 0.05, 10e-9, np.pi / 2)
 
     info = mne.io.read_info(sensorsFile)
     # Time Parameters for the source signal
@@ -157,11 +175,14 @@ def generate_simulation(sensorsFile, mri_paths):
 
     eccen_screen, e_cort = create_screen_grid(screen_config)
     # Recreate stim inducer
-    sin_inducer = create_stim_inducer(screen_config, times, params, e_cort)
+    sin_inducer = create_stim_inducer(screen_config, times, params, e_cort, stim)
 
     def map_stim(eccen_lbl): map_stim_value(times, sin_inducer, eccen_screen, eccen_lbl)
+
     wave_label = apply_tuple(eccen_label, map_stim)
     wave_quad, wave_fov, wave_halfHalf = create_wave_stims(wave_label, angle_label, eccen_label)
+
+    stc_gen = create_stc(forward_model, times, tstep)
 
 
 if __name__ == '__main__':

@@ -1,6 +1,7 @@
 import unittest
 
-from utils import mri_paths, simulation_params
+from utils import mri_paths, simulation_params, screen_params
+import toolbox.simulation as simulation
 from toolbox.simulation import load_labels, create_stim_inducer
 from pathlib import Path
 import numpy as np
@@ -29,13 +30,15 @@ class TestLoadLabels(unittest.TestCase):
 class TestCreateSimInducer(unittest.TestCase):
     tstep = 1 / 200
     times = np.arange(2 / tstep + 1) * tstep
-    sin_inducer = np.zeros((3, len(times), 1080, 1920))
     params = simulation_params(5, 0.05, 10e-9, np.pi / 2)
+    screen_config = screen_params(1920, 1080, 78, 44.2)
 
     def test_filling_array(self):
-        create_stim_inducer(self.sin_inducer, self.times, self.params, 1)
-        self.assertTrue(self.sin_inducer.shape == (3, len(self.times), 1080, 1920), "Shape error")
-        self.assertNotEqual(np.count_nonzero(self.sin_inducer), 0, "Array was not filled")
+        _, e_cort = simulation.create_screen_grid(self.screen_config)
+        sin_inducer = create_stim_inducer(self.screen_config, self.times, self.params, e_cort, simulation.TRAV_OUT)
+        self.assertTrue(sin_inducer.shape == (len(self.times), self.screen_config.height, self.screen_config.width),
+                        "Shape error")
+        self.assertNotEqual(np.count_nonzero(sin_inducer), 0, "Array was not filled")
 
 
 if __name__ == '__main__':
