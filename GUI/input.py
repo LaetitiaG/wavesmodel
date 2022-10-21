@@ -7,6 +7,7 @@ import utils
 from pathlib import Path
 from toolbox import configIO
 
+
 class MainFrame(ttk.Frame):
 
     def __init__(self, container):
@@ -38,6 +39,7 @@ class MainFrame(ttk.Frame):
         list_frame['padding'] = (5, 10)
         list_frame.pack(expand=True, fill=tk.BOTH)
         self.listbox = tools.Listbox(list_frame, listvariable=self.list_items, height=10)
+        self.listbox.bind('<Double-1>', self.edit_entry)
         self.listbox.pack(expand=True, side=tk.LEFT, fill=tk.BOTH)
 
         button_frame = tk.Frame(list_frame)
@@ -52,7 +54,7 @@ class MainFrame(ttk.Frame):
         loadconf_button = tk.Button(button_frame, text='LOAD CONFIG', command=self.load_config_file)
         loadconf_button.pack(side=tk.TOP)
 
-    def edit_entry(self):
+    def edit_entry(self, event=None):
         idx = self.listbox.curselection()
         if not idx:
             mb.showerror('Error', 'You must select an entry to edit')
@@ -81,17 +83,73 @@ class MainFrame(ttk.Frame):
         self.config_file.set(filepath)
 
 
-class EntryWindow(tk.Toplevel):
+class ConfigFrame(ttk.Frame):
+    def __init__(self, parent, param, config_path):
+        super(ConfigFrame, self).__init__(parent)
+        self.path = Path(config_path)
+        self.config_obj = configIO.get_config_object(config_path)
+        self.list_items = tk.Variable(value=self.config_obj.sections())
+        self.param = param
+        self.param_class = param.__class__
+        self.txtInput = []
+        self.create()
 
+    def create(self):
+        lbframe = ttk.Frame(self)
+        listbox = tk.Listbox(lbframe, height=10, listvariable=self.list_items)
+        listbox.pack(fill=tk.BOTH)
+        listbox.bind('<Double-1>', self.load_configs)
+        config_button = tk.Button(lbframe, text='Save config', command=self.save_config)
+        config_button.pack(side=tk.BOTTOM)
+        lbframe.pack(fill=tk.BOTH, side=tk.LEFT)
+        self.add_text_inputs()
+        self.load_params()
+        self.pack(fill=tk.BOTH)
+
+    def get_param(self):
+        return self.param_class(*map(lambda x: x.get(), self.txtInput))
+
+    def save_config(self):
+        name = simpledialog.askstring(self, None)
+        params = self.get_param()
+        configIO.create_config_file(self.config_obj, params, name, self.path)
+        self.list_items.set(self.config_obj.sections())
+
+    def load_configs(self, event):
+        widget = event.widget
+        idx = widget.curselection()[0]
+        sel = self.list_items.get()[idx]
+        simulation = self.config_obj[sel].values()
+        self.param = self.param_class(*simulation)
+        self.load_params()
+
+    def add_text_inputs(self):
+        for field in self.param._fields:
+            f = tk.Frame(self)
+            lbl = tk.Label(f, text=field)
+            txt = ttk.Entry(f)
+            self.txtInput.append(txt)
+            lbl.pack(side=tk.LEFT)
+            txt.pack(side=tk.LEFT, fill=tk.BOTH)
+            f.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+    def load_params(self):
+        if self.param is None:
+            return
+        for i in range(len(self.param)):
+            self.txtInput[i].delete(0, tk.END)
+            self.txtInput[i].insert(0, self.param[i])
+
+
+class EntryWindow(tk.Toplevel):
     def __init__(self, parent, entry):
         super(EntryWindow, self).__init__(parent)
         self.new = entry is None
         self.entry = utils.Entry() if self.new else entry
         self.measuredStringVar = tk.StringVar(self, self.entry.measured)
         self.retinoStringVar = tk.StringVar(self, self.entry.retino_map)
-
-        self.config_obj = configIO.get_config_object('./config/simulation.ini')
-        self.list_items = tk.Variable(value=self.config_obj.sections())
+        self.simulation_frame = None
+        self.screen_frame = None
 
         self.txtInputs = {}
         self.saveButton = tk.Button(self, text='SAVE', command=self.save_entry)
@@ -110,79 +168,23 @@ class EntryWindow(tk.Toplevel):
         f.pack(fill=tk.BOTH)
         tools.add_file_input(f, 'Measured data', self.measuredStringVar, tools.select_file)
 
-        # handle notebook frame sepratly as herited class (for 3 params)
-        simulation_frame = ttk.Frame(notebk)
-        lbframe = tk.Frame(simulation_frame)
-        listbox = tk.Listbox(lbframe, height=10, listvariable=self.list_items)
-        listbox.pack(fill=tk.BOTH)
-        listbox.bind('<Double-1>', self.load_sim)
-        config_button = tk.Button(lbframe, text='Save config', command=self.save_config)
-        config_button.pack()
-        lbframe.pack(fill=tk.BOTH, side=tk.LEFT)
-        self.add_text_inputs(simulation_frame, utils.simulation_params)
-        simulation_frame.pack(fill=tk.BOTH)
-
-        screen_frame = ttk.Frame(notebk)
-        self.add_text_inputs(screen_frame, utils.screen_params)
-        screen_frame.pack(fill=tk.BOTH)
+        self.simulation_frame = ConfigFrame(notebk, self.entry.simulation_params, './config/simulation.ini')
+        self.screen_frame = ConfigFrame(notebk, self.entry.screen_params, './config/screen.ini')
 
         mri_frame = ttk.Frame(notebk)
         tools.add_file_input(mri_frame, 'Retinotopic map MRI', self.retinoStringVar, tools.select_file)
         mri_frame.pack(fill=tk.BOTH)
 
         notebk.add(f, text='First version')
-        notebk.add(simulation_frame, text='Simulation')
-        notebk.add(screen_frame, text='Screen')
+        notebk.add(self.simulation_frame, text='Simulation')
+        notebk.add(self.screen_frame, text='Screen')
         notebk.add(mri_frame, text='MRI')
 
         self.saveButton.pack(side=tk.BOTTOM)
-        if not self.new:
-            self.load_entry()
-
-    def load_sim(self, event):
-        widget = event.widget
-        idx = widget.curselection()[0]
-        sel = self.list_items.get()[idx]
-        simulation = self.config_obj[sel].values()
-        self.entry.simulation_params = utils.simulation_params(*simulation)
-        self.load_entry()
-
-    def add_text_inputs(self, mainFrame, params):
-        ipt = []
-        for field in params._fields:
-            f = tk.Frame(mainFrame)
-            lbl = tk.Label(f, text=field)
-            txt = ttk.Entry(f)
-            ipt.append(txt)
-            lbl.pack(side=tk.LEFT)
-            txt.pack(side=tk.LEFT, fill=tk.BOTH)
-            f.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        self.txtInputs[params.__name__] = ipt
-
-    def load_entry(self):
-        self.__load_entry_param(self.entry.simulation_params)
-        self.__load_entry_param(self.entry.screen_params)
-
-    def __load_entry_param(self, param):
-        if param is None:
-            return
-        sim_input = self.txtInputs[param.__class__.__name__]
-        for i in range(len(param)):
-            sim_input[i].delete(0, tk.END)
-            sim_input[i].insert(0, param[i])
-
-    def __get_param(self, param):
-        return param(*map(lambda x: x.get(), self.txtInputs[param.__name__]))
-
-    def save_config(self):
-        name = simpledialog.askstring(self, None)
-        sim_params = self.__get_param(utils.simulation_params)
-        configIO.create_config_file(self.config_obj, sim_params, name)
-        self.list_items.set(self.config_obj.sections())
 
     def save_entry(self):
-        self.entry.simulation_params = self.__get_param(utils.simulation_params)
-        self.entry.screen_params = self.__get_param(utils.screen_params)
+        self.entry.simulation_params = self.simulation_frame.get_param()
+        self.entry.screen_params = self.screen_frame.get_param()
         self.entry.measured = Path(self.measuredStringVar.get())
         self.entry.retino_map = Path(self.retinoStringVar.get())
         self.destroy()

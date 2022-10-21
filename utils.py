@@ -24,8 +24,8 @@ class Entry:
     """Data class corresponding to the entry structure"""
     measured: Path = Path('/')
     retino_map: Path = Path('/')
-    simulation_params: simulation_params = None
-    screen_params: screen_params = None
+    simulation_params: simulation_params = simulation_params(*[0] * len(simulation_params._fields))
+    screen_params: screen_params = screen_params(*[0] * len(screen_params._fields))
     mri_params: mri_paths = None
 
     def set_simulation_params(self, simulation_params_list):

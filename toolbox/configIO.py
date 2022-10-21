@@ -1,8 +1,10 @@
 import configparser
-from configparser import SafeConfigParser
+from configparser import ConfigParser
 from utils import simulation_params, screen_params
 from dataclasses import dataclass
 import os.path as op
+from os import makedirs
+from pathlib import Path
 
 
 @dataclass
@@ -11,18 +13,21 @@ class Config:
     screen_params: screen_params
 
 
-def create_config_file(config_obj, sim, name):
-    config_obj[name] = sim._asdict()
-    write_config(config_obj)
+def create_config_file(config_obj, params, name, path):
+    config_obj[name] = params._asdict()
+    write_config(config_obj, path)
 
 
-def write_config(config_object):
-    with open('./config/simulation.ini', 'w') as config:
+def write_config(config_object, path):
+    path = Path(path)
+    if not op.exists(path.parent):
+        makedirs(path.parent)
+    with open(path, 'w') as config:
         config_object.write(config)
 
 
 def read_config(filepath):
-    config_object = SafeConfigParser()
+    config_object = ConfigParser()
     config_object.read(filepath)
     simulation = config_object["SIMULATION"]
     sim_params = simulation_params(*simulation.values())
@@ -30,7 +35,7 @@ def read_config(filepath):
 
 
 def get_config_object(filepath):
-    config_object = SafeConfigParser()
+    config_object = ConfigParser()
     try:
         config_object.read(filepath)
     except configparser.DuplicateSectionError:

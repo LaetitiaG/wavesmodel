@@ -8,7 +8,7 @@ import numpy as np
 
 
 class TestLoadLabels(unittest.TestCase):
-    """"
+    """
     Test function for simulation.load_labels
     Needs server to be mounted on Z: to work
     """
@@ -28,6 +28,9 @@ class TestLoadLabels(unittest.TestCase):
 
 
 class TestCreateSimInducer(unittest.TestCase):
+    """
+    Test function for simulation.load_labels
+    """
     tstep = 1 / 200
     times = np.arange(2 / tstep + 1) * tstep
     params = simulation_params(5, 0.05, 10e-9, np.pi / 2)
