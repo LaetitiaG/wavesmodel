@@ -90,21 +90,20 @@ def create_stim_inducer(screen_config, times, params, e_cort, stim):
     """
     sin_inducer = np.zeros((len(times), screen_config.height, screen_config.width))
 
-    def func(time):
-        if stim == TRAV_OUT:
-            return params.amplitude * \
-                           np.sin(2 * np.pi * params.freq_spacial *
-                                  e_cort - 2 * np.pi * params.freq_temp * time + params.phase_offset)
-        elif stim == STANDING:
-            return params.amplitude * \
-                             np.sin(2 * np.pi * params.freq_spacial * e_cort + params.phase_offset) * \
-                             np.cos(2 * np.pi * params.freq_temp * time)
-        elif stim == TRAV_IN:
-            return params.amplitude * \
-                             np.sin(2 * np.pi * params.freq_spacial *
-                                    e_cort + 2 * np.pi * params.freq_temp * time + params.phase_offset)
-        else:
-            raise ValueError('Incorrect stimulation value')  # needs to be InputStimError
+    if stim == TRAV_OUT:
+        def func(t): return params.amplitude * \
+                       np.sin(2 * np.pi * params.freq_spacial *
+                              e_cort - 2 * np.pi * params.freq_temp * t + params.phase_offset)
+    elif stim == STANDING:
+        def func(t): return params.amplitude * \
+                         np.sin(2 * np.pi * params.freq_spacial * e_cort + params.phase_offset) * \
+                         np.cos(2 * np.pi * params.freq_temp * t)
+    elif stim == TRAV_IN:
+        def func(t): return params.amplitude * \
+                         np.sin(2 * np.pi * params.freq_spacial *
+                                e_cort + 2 * np.pi * params.freq_temp * t + params.phase_offset)
+    else:
+        raise ValueError('Incorrect stimulation value')  # needs to be InputStimError
     # apply func on times
     for idx, time in enumerate(times):
         sin_inducer[idx] = func(time)
@@ -114,16 +113,15 @@ def create_stim_inducer(screen_config, times, params, e_cort, stim):
 def map_stim_value(times, sin_inducer, eccen_screen, eccen_label):
     """
     Map stim values on voxel label (for lh and rh labels)
+    Used with apply_tuple, avoiding to have to handle tuple inside
     """
-    wave_label = np.zeros((3, len(eccen_label), len(times)))
+    wave_label = np.zeros(len(eccen_label), len(times))
     for ind_l, l in enumerate(eccen_label):
         if l > np.max(eccen_screen):
             continue
         imin = np.argmin(np.abs(eccen_screen - eccen_label[ind_l]))
         ind_stim = np.unravel_index(imin, np.shape(eccen_screen))
-        wave_label[0, ind_l] = sin_inducer[0, :, ind_stim[0], ind_stim[1]]  # trav
-        wave_label[1, ind_l] = sin_inducer[1, :, ind_stim[0], ind_stim[1]]  # stand
-        wave_label[2, ind_l] = sin_inducer[2, :, ind_stim[0], ind_stim[1]]  # trav in
+        wave_label[ind_l] = sin_inducer[:, ind_stim[0], ind_stim[1]]
     return wave_label
 
 
@@ -132,36 +130,38 @@ def create_wave_stims(wave_label, angle_label, eccen_label):
     wave_quad = deepcopy(wave_label[LEFT_HEMI])
     mask_quad = (angle_label[LEFT_HEMI] > 90 + 5) & (angle_label[LEFT_HEMI] < 180 - 5)
     mask = np.invert(mask_quad)  # right lower quadrant
-    wave_quad[:, mask, :] = 0
+    wave_quad[mask, :] = 0
 
     # Create wave stim for foveal condition (session 2)
     wave_fov = apply_tuple(wave_label, deepcopy)
-    wave_fov[LEFT_HEMI][:, eccen_label[0] > 5, :] = 0  # lh
-    wave_fov[RIGHT_HEMI][:, eccen_label[1] > 5, :] = 0  # rh
+    wave_fov[LEFT_HEMI][eccen_label[0] > 5, :] = 0
+    wave_fov[RIGHT_HEMI][eccen_label[1] > 5, :] = 0
 
     # Create stim for half left stimulated V1 = cond, other half = other cond
     wave_halfHalf = np.zeros(np.shape(wave_label[LEFT_HEMI]))
+    # Handle this case of inverting wave types when only 1 is now available
     wave_halfHalf[0] = wave_label[LEFT_HEMI][1]
     wave_halfHalf[1] = wave_label[RIGHT_HEMI][0]  # switch wave types
-    wave_halfHalf[:, mask_quad, :] = wave_quad[:, mask_quad, :]
+    wave_halfHalf[mask_quad, :] = wave_quad[mask_quad, :]
 
     return wave_quad, wave_fov, wave_halfHalf
 
 
-def create_stc(forward_model, times, tstep):
+def create_stc(forward_model, times, tstep, mri_path):
     # Load forward model
     fwd = mne.read_forward_solution(forward_model)
     src = fwd['src']  # source space
 
     # Create empty stc
-    labels = mne.read_labels_from_annot(subject, subjects_dir=subjects_dir, parc='aparc.a2009s')  # aparc.DKTatlas
+    # need to indicate the directory of the freesurfer files for given subject
+    labels = mne.read_labels_from_annot(mri_path.name, subjects_dir=mri_path.parent, parc='aparc.a2009s')  # aparc.DKTatlas
     n_labels = len(labels)
     signal = np.zeros((n_labels, len(times)))
-    return mne.simulation.simulate_stc(fwd['src'], labels, signal, times[0], tstep,
+    return mne.simulation.simulate_stc(src, labels, signal, times[0], tstep,
                                        value_fun=lambda x: x)  # labels or label_sel
 
 
-def generate_simulation(sensorsFile, mri_paths, forward_model, stim):
+def generate_simulation(sensorsFile, mri_paths, forward_model, stim, mri_path):
     # Magic numbers -- must be parameters later
     screen_config = utils.screen_params(1920, 1080, 78, 44.2)
     params = utils.simulation_params(5, 0.05, 10e-9, np.pi / 2)
@@ -177,12 +177,13 @@ def generate_simulation(sensorsFile, mri_paths, forward_model, stim):
     # Recreate stim inducer
     sin_inducer = create_stim_inducer(screen_config, times, params, e_cort, stim)
 
+    #define function to handle eccen_label as a tuple of hemis
     def map_stim(eccen_lbl): map_stim_value(times, sin_inducer, eccen_screen, eccen_lbl)
 
     wave_label = apply_tuple(eccen_label, map_stim)
     wave_quad, wave_fov, wave_halfHalf = create_wave_stims(wave_label, angle_label, eccen_label)
 
-    stc_gen = create_stc(forward_model, times, tstep)
+    stc_gen = create_stc(forward_model, times, tstep, mri_path)
 
 
 if __name__ == '__main__':
