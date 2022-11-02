@@ -161,17 +161,49 @@ def create_stc(forward_model, times, tstep, mri_path):
                                        value_fun=lambda x: x)  # labels or label_sel
 
 
+def fill_activity(cond, stc_gen, wave_label, inds_label, eccen_label, angle_label):
+    # fullfield waves
+    if cond in ['trav', 'stand', 'trav_in']:
+        stc_angle = stc_gen.copy()  # only for left hemisphere
+        stc_eccen = stc_gen.copy()
+        ## full field
+        stc_wave = stc_gen.copy()
+        for i in inds_label[0]:  # lh
+            if i in stc_gen.lh_vertno:
+                i_stc = np.where(i == stc_gen.lh_vertno)[0][0]
+                stc_wave.lh_data[i_stc] = wave_label[0][inds_label[0] == i]
+                stc_eccen.lh_data[i_stc] = eccen_label[0][inds_label[0] == i]
+                stc_angle.lh_data[i_stc] = angle_label[0][inds_label[0] == i]
+
+        for i in inds_label[1]:  # rh
+            if i in stc_gen.rh_vertno:
+                i_stc = np.where(i == stc_gen.rh_vertno)[0][0]
+                stc_wave.rh_data[i_stc] = wave_label[1][inds_label[1] == i]
+                stc_eccen.rh_data[i_stc] = eccen_label[1][inds_label[1] == i]
+                stc_angle.rh_data[i_stc] = angle_label[1][inds_label[1] == i]
+        return stc_wave
+    elif cond is 'quad':
+        ## quadrant
+        tmp = stc_gen.copy()
+        for i in inds_label[0]:  # lh
+            if i in stc_gen.lh_vertno:
+                i_stc = np.where(i == stc_gen.lh_vertno)[0][0]
+                tmp.lh_data[i_stc] = wave_quad[ind_c, inds_label[0] == i]
+
+
 def generate_simulation(sensorsFile, mri_paths, forward_model, stim, mri_path):
     # Magic numbers -- must be parameters later
     screen_config = utils.screen_params(1920, 1080, 78, 44.2)
     params = utils.simulation_params(5, 0.05, 10e-9, np.pi / 2)
+    cond = 'stand'
 
     info = mne.io.read_info(sensorsFile)
     # Time Parameters for the source signal
     tstep = 1 / info['sfreq']
     times = np.arange(2 / tstep + 1) * tstep
 
-    inds_label, angle_label, eccen_label = load_labels(mri_paths)
+    labels = load_labels(mri_paths)
+    inds_label, angle_label, eccen_label = labels
 
     eccen_screen, e_cort = create_screen_grid(screen_config)
     # Recreate stim inducer
@@ -184,6 +216,8 @@ def generate_simulation(sensorsFile, mri_paths, forward_model, stim, mri_path):
     wave_quad, wave_fov, wave_halfHalf = create_wave_stims(wave_label, angle_label, eccen_label)
 
     stc_gen = create_stc(forward_model, times, tstep, mri_path)
+    
+    stc_wave = fill_activity(cond, stc_gen, wave_label, *labels)
 
 
 if __name__ == '__main__':
