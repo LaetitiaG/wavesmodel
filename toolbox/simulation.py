@@ -161,34 +161,15 @@ def create_stc(forward_model, times, tstep, mri_path):
                                        value_fun=lambda x: x)  # labels or label_sel
 
 
-def fill_activity(cond, stc_gen, wave_label, inds_label, eccen_label, angle_label):
-    # fullfield waves
-    if cond in ['trav', 'stand', 'trav_in']:
-        stc_angle = stc_gen.copy()  # only for left hemisphere
-        stc_eccen = stc_gen.copy()
-        ## full field
-        stc_wave = stc_gen.copy()
-        for i in inds_label[0]:  # lh
-            if i in stc_gen.lh_vertno:
-                i_stc = np.where(i == stc_gen.lh_vertno)[0][0]
-                stc_wave.lh_data[i_stc] = wave_label[0][inds_label[0] == i]
-                stc_eccen.lh_data[i_stc] = eccen_label[0][inds_label[0] == i]
-                stc_angle.lh_data[i_stc] = angle_label[0][inds_label[0] == i]
+def fill_wave_activity(stc_gen, inds_label, wave_label, wave_halfHalf):
+    ## V1 with half cond, the other half other cond
+    tmp = stc_gen.copy()
+    for i in inds_label[0]:  # lh
+        if i in stc_gen.lh_vertno:
+            i_stc = np.where(i == stc_gen.lh_vertno)[0][0]
+            tmp.lh_data[i_stc] = wave_halfHalf[inds_label[0] == i]
 
-        for i in inds_label[1]:  # rh
-            if i in stc_gen.rh_vertno:
-                i_stc = np.where(i == stc_gen.rh_vertno)[0][0]
-                stc_wave.rh_data[i_stc] = wave_label[1][inds_label[1] == i]
-                stc_eccen.rh_data[i_stc] = eccen_label[1][inds_label[1] == i]
-                stc_angle.rh_data[i_stc] = angle_label[1][inds_label[1] == i]
-        return stc_wave
-    elif cond is 'quad':
-        ## quadrant
-        tmp = stc_gen.copy()
-        for i in inds_label[0]:  # lh
-            if i in stc_gen.lh_vertno:
-                i_stc = np.where(i == stc_gen.lh_vertno)[0][0]
-                tmp.lh_data[i_stc] = wave_quad[ind_c, inds_label[0] == i]
+    return tmp
 
 
 def generate_simulation(sensorsFile, mri_paths, forward_model, stim, mri_path):
@@ -217,7 +198,7 @@ def generate_simulation(sensorsFile, mri_paths, forward_model, stim, mri_path):
 
     stc_gen = create_stc(forward_model, times, tstep, mri_path)
     
-    stc_wave = fill_activity(cond, stc_gen, wave_label, *labels)
+    stc_wave = fill_wave_activity(stc_gen, inds_label, wave_label, wave_halfHalf)
 
 
 if __name__ == '__main__':
