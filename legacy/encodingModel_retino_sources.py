@@ -220,7 +220,7 @@ for s in range(len(subjects)):
     # Map stim values on voxel label (for lh and rh labels)
     wave_label = []
     for ind_h, hemi in enumerate(hemis):
-        wave_label.append(np.zeros((3, len(eccen_label[ind_h]), len(times))))
+        wave_label.append(np.zeros(3, len(eccen_label[ind_h]), len(times)))
         for ind_l, l in enumerate(eccen_label[ind_h]):
             # voxels above the maximum eccentricity of the screen stays zero
             if l <= np.max(eccen_screen):

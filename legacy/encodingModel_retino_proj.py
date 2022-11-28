@@ -40,13 +40,13 @@ chan_toplot = {'mag':['MEG2111'],'grad':['MEG2112'],'eeg': ['EEG070']}
 ##############################################################################
 ### Main ###
 ##############################################################################
-  
+
 for subject in subjects: 
     report = mne.Report(verbose=True)
     # Read info from raw data
     fname_dic = preproc.read_filesName(datapath + subject)
     sname = fname_dic['session1']['func'][0][:-4] + '_preproc_raw_tsss.fif'
-    info = mne.io.read_info(os.path.join(preprocpath,fname_dic['session1']['subj'], fname_dic['session1']['ses'], sname))
+    info = mne.io.read_info(os.path.join(preprocpath, fname_dic['session1']['subj'], fname_dic['session1']['ses'], sname))
     
     # Load forward model
     fname = op.join(preprocpath, subject, 'forwardmodel', subject + '_session1_ico5-fwd.fif')

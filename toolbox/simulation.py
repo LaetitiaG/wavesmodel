@@ -161,7 +161,38 @@ def create_stc(forward_model, times, tstep, mri_path):
                                        value_fun=lambda x: x)  # labels or label_sel
 
 
-def fill_wave_activity(stc_gen, inds_label, wave_label, wave_halfHalf):
+def fill_stc(stc_gen, c_space, inds_label, angle_label, eccen_label, wave_label, wave_quad):
+    stc_angle = stc_gen.copy()  # only for left hemisphere
+    stc_eccen = stc_gen.copy()
+
+    if c_space is 'full':
+        tmp = stc_gen.copy()
+        for i in inds_label[0]:  # lh
+            if i in stc_gen.lh_vertno:
+                i_stc = np.where(i == stc_gen.lh_vertno)[0][0]
+                tmp.lh_data[i_stc] = wave_label[0][inds_label[0] == i]
+                stc_eccen.lh_data[i_stc] = eccen_label[0][inds_label[0] == i]
+                stc_angle.lh_data[i_stc] = angle_label[0][inds_label[0] == i]
+
+        for i in inds_label[1]:  # rh
+            if i in stc_gen.rh_vertno:
+                i_stc = np.where(i == stc_gen.rh_vertno)[0][0]
+                tmp.rh_data[i_stc] = wave_label[1][inds_label[1] == i]
+                stc_eccen.rh_data[i_stc] = eccen_label[1][inds_label[1] == i]
+                stc_angle.rh_data[i_stc] = angle_label[1][inds_label[1] == i]
+        return tmp
+
+    elif c_space is 'quad':
+        tmp = stc_gen.copy()
+        for i in inds_label[0]:  # lh
+            if i in stc_gen.lh_vertno:
+                i_stc = np.where(i == stc_gen.lh_vertno)[0][0]
+                tmp.lh_data[i_stc] = wave_quad[inds_label[0] == i]
+
+        return tmp
+
+
+def fill_wave_activity(stc_gen, inds_label, wave_halfHalf):
     ## V1 with half cond, the other half other cond
     tmp = stc_gen.copy()
     for i in inds_label[0]:  # lh
@@ -176,7 +207,7 @@ def generate_simulation(sensorsFile, mri_paths, forward_model, stim, mri_path):
     # Magic numbers -- must be parameters later
     screen_config = utils.screen_params(1920, 1080, 78, 44.2)
     params = utils.simulation_params(5, 0.05, 10e-9, np.pi / 2)
-    cond = 'stand'
+    c_space = 'full'
 
     info = mne.io.read_info(sensorsFile)
     # Time Parameters for the source signal
@@ -198,7 +229,8 @@ def generate_simulation(sensorsFile, mri_paths, forward_model, stim, mri_path):
 
     stc_gen = create_stc(forward_model, times, tstep, mri_path)
     
-    stc_wave = fill_wave_activity(stc_gen, inds_label, wave_label, wave_halfHalf)
+    stc_wave = fill_wave_activity(stc_gen, inds_label, wave_halfHalf)
+    stc = fill_stc(stc_gen, c_space, *labels, wave_label, wave_quad)
 
 
 if __name__ == '__main__':
