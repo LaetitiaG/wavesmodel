@@ -53,6 +53,14 @@ class MainFrame(ttk.Frame):
         remove_button.pack(side=tk.TOP)
         loadconf_button = tk.Button(button_frame, text='LOAD CONFIG', command=self.load_config_file)
         loadconf_button.pack(side=tk.TOP)
+        run_button = tk.Button(button_frame, text='RUN', command=self.run_simulation)
+        run_button.pack(side=tk.BOTTOM)
+
+    def entry_window(self, entry=None):
+        entryWin = EntryWindow(self, entry)
+        entry = entryWin.get_entry()
+        if entry is not None:
+            self.listbox.insert(tk.END, entry)
 
     def edit_entry(self, event=None):
         idx = self.listbox.curselection()
@@ -63,12 +71,6 @@ class MainFrame(ttk.Frame):
             entry = self.listbox.get_value(idx)
             self.entry_window(entry)
             self.listbox.delete(idx)
-
-    def entry_window(self, entry=None):
-        entryWin = EntryWindow(self, entry)
-        entry = entryWin.get_entry()
-        if entry is not None:
-            self.listbox.insert(tk.END, entry)
 
     def remove_entry(self):
         idx = self.listbox.curselection()
@@ -81,6 +83,9 @@ class MainFrame(ttk.Frame):
     def load_config_file(self):
         filepath = tools.save_file(self, self.config_file)
         self.config_file.set(filepath)
+
+    def run_simulation(self):
+        return
 
 
 class ConfigFrame(ttk.Frame):
@@ -110,7 +115,7 @@ class ConfigFrame(ttk.Frame):
         return self.param_class(*map(lambda x: x.get(), self.txtInput))
 
     def save_config(self):
-        name = simpledialog.askstring(self, None)
+        name = simpledialog.askstring("Config name", "Enter config name", parent=self)
         params = self.get_param()
         configIO.create_config_file(self.config_obj, params, name, self.path)
         self.list_items.set(self.config_obj.sections())
@@ -144,6 +149,7 @@ class ConfigFrame(ttk.Frame):
 class EntryWindow(tk.Toplevel):
     def __init__(self, parent, entry):
         super(EntryWindow, self).__init__(parent)
+        self.grab_set()
         self.new = entry is None
         self.entry = utils.Entry() if self.new else entry
         self.measuredStringVar = tk.StringVar(self, self.entry.measured)
