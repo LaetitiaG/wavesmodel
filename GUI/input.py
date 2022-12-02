@@ -43,7 +43,7 @@ class MainFrame(ttk.Frame):
         self.listbox.bind('<Double-1>', self.edit_entry)
         self.listbox.pack(expand=True, side=tk.LEFT, fill=tk.BOTH)
 
-        button_frame = tk.Frame(list_frame)
+        button_frame = ttk.Frame(list_frame)
 
         add_button = tk.Button(button_frame, text='ADD', command=self.entry_window)
         edit_button = tk.Button(button_frame, text='EDIT', command=self.edit_entry)
@@ -131,7 +131,7 @@ class ConfigFrame(ttk.Frame):
 
     def add_text_inputs(self):
         for field in self.param._fields:
-            f = tk.Frame(self)
+            f = ttk.Frame(self)
             lbl = tk.Label(f, text=field)
             txt = ttk.Entry(f)
             self.txtInput.append(txt)
