@@ -78,16 +78,15 @@ class MainFrame(ttk.Frame):
         config_obj = configIO.get_config_object(filepath)
         sim_obj = configIO.get_config_object(SIM_CONF)
         screen_obj = configIO.get_config_object(SCREEN_CONF)
-        entries_list = []
         for section in config_obj.sections():
             sim_section = config_obj[section]['simulation']
             screen_section = config_obj[section]['screen']
             sim_vals = sim_obj[sim_section].values()
-            screen_vals = sim_obj[screen_section].values()
+            screen_vals = screen_obj[screen_section].values()
             entry = utils.Entry()
             entry.set_simulation_params(sim_vals)
             entry.set_screen_params(screen_vals)
-            entries_list.append(entry)
+            self.listbox.insert(tk.END, entry)
 
 
     def save_config_frame(self):
