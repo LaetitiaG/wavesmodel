@@ -4,6 +4,7 @@ from tkinter import messagebox as mb
 from tkinter import simpledialog
 import tools
 import utils
+from utils import CONFIG_PATH, SIM_CONF, SCREEN_CONF
 from pathlib import Path
 from toolbox import configIO
 
@@ -23,16 +24,6 @@ class MainFrame(ttk.Frame):
         header.pack(fill=tk.BOTH, expand=True)
         self.create_list_frame()
         self.save_config_frame()
-
-    def save_config_frame(self):
-        save_file = tk.StringVar()
-        f = tools.add_file_input(self, 'Save location', save_file, tools.save_file)
-        f['padding'] = (10, 5 )
-        btn = tk.Button(f, text='SAVE', command=self.save_config)
-        btn.pack(side=tk.LEFT)
-
-    def save_config(self):
-        return # TODO save the entries in a file
 
     def create_list_frame(self):
         # create list for entries
@@ -84,6 +75,30 @@ class MainFrame(ttk.Frame):
     def load_config_file(self):
         filepath = tools.save_file(self, self.config_file)
         self.config_file.set(filepath)
+        config_obj = configIO.get_config_object(filepath)
+        sim_obj = configIO.get_config_object(SIM_CONF)
+        screen_obj = configIO.get_config_object(SCREEN_CONF)
+        entries_list = []
+        for section in config_obj.sections():
+            sim_section = config_obj[section]['simulation']
+            screen_section = config_obj[section]['screen']
+            sim_vals = sim_obj[sim_section].values()
+            screen_vals = sim_obj[screen_section].values()
+            entry = utils.Entry()
+            entry.set_simulation_params(sim_vals)
+            entry.set_screen_params(screen_vals)
+            entries_list.append(entry)
+
+
+    def save_config_frame(self):
+        save_file = tk.StringVar()
+        f = tools.add_file_input(self, 'Save location', save_file, tools.save_file)
+        f['padding'] = (10, 5 )
+        btn = tk.Button(f, text='SAVE', command=self.save_config)
+        btn.pack(side=tk.LEFT)
+
+    def save_config(self):
+        return # TODO save the entries in a file
 
     def run_simulation(self):
         return
@@ -125,8 +140,8 @@ class ConfigFrame(ttk.Frame):
         widget = event.widget
         idx = widget.curselection()[0]
         sel = self.list_items.get()[idx]
-        simulation = self.config_obj[sel].values()
-        self.param = self.param_class(*simulation)
+        values = self.config_obj[sel].values()
+        self.param = self.param_class(*values)
         self.load_params()
 
     def add_text_inputs(self):
@@ -175,8 +190,8 @@ class EntryWindow(tk.Toplevel):
         f.pack(fill=tk.BOTH)
         tools.add_file_input(f, 'Measured data', self.measuredStringVar, tools.select_file)
 
-        self.simulation_frame = ConfigFrame(notebk, self.entry.simulation_params, './config/simulation.ini')
-        self.screen_frame = ConfigFrame(notebk, self.entry.screen_params, './config/screen.ini')
+        self.simulation_frame = ConfigFrame(notebk, self.entry.simulation_params, SIM_CONF)
+        self.screen_frame = ConfigFrame(notebk, self.entry.screen_params, SCREEN_CONF)
 
         mri_frame = ttk.Frame(notebk)
         tools.add_file_input(mri_frame, 'Retinotopic map MRI', self.retinoStringVar, tools.select_file)

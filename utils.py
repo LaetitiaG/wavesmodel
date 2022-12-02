@@ -2,6 +2,10 @@ from collections import namedtuple  # available in Python 2.6+
 from dataclasses import dataclass
 from pathlib import Path
 
+CONFIG_PATH = Path('./config')
+SIM_CONF = CONFIG_PATH / 'simulation.ini'
+SCREEN_CONF = CONFIG_PATH / 'screen.ini'
+
 simulation_params = namedtuple("simulation_params",
                                ["freq_temp", "freq_spacial", "amplitude", "phase_offset"])
 
