@@ -27,6 +27,7 @@ class MainFrame(ttk.Frame):
     def save_config_frame(self):
         save_file = tk.StringVar()
         f = tools.add_file_input(self, 'Save location', save_file, tools.save_file)
+        f['padding'] = (10, 5 )
         btn = tk.Button(f, text='SAVE', command=self.save_config)
         btn.pack(side=tk.LEFT)
 
@@ -43,18 +44,18 @@ class MainFrame(ttk.Frame):
         self.listbox.pack(expand=True, side=tk.LEFT, fill=tk.BOTH)
 
         button_frame = tk.Frame(list_frame)
-        button_frame.pack(side=tk.LEFT, fill=tk.BOTH)
 
         add_button = tk.Button(button_frame, text='ADD', command=self.entry_window)
-        add_button.pack(side=tk.TOP)
         edit_button = tk.Button(button_frame, text='EDIT', command=self.edit_entry)
-        edit_button.pack(side=tk.TOP)
         remove_button = tk.Button(button_frame, text='REMOVE', command=self.remove_entry)
-        remove_button.pack(side=tk.TOP)
         loadconf_button = tk.Button(button_frame, text='LOAD CONFIG', command=self.load_config_file)
-        loadconf_button.pack(side=tk.TOP)
+        for widget in button_frame.winfo_children():
+            widget.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
+
         run_button = tk.Button(button_frame, text='RUN', command=self.run_simulation)
-        run_button.pack(side=tk.BOTTOM)
+        run_button.pack(side=tk.BOTTOM, fill=tk.X, padx=5)
+
+        button_frame.pack(side=tk.LEFT, fill=tk.BOTH)
 
     def entry_window(self, entry=None):
         entryWin = EntryWindow(self, entry)
@@ -104,7 +105,7 @@ class ConfigFrame(ttk.Frame):
         listbox = tk.Listbox(lbframe, height=10, listvariable=self.list_items)
         listbox.pack(fill=tk.BOTH)
         listbox.bind('<Double-1>', self.load_configs)
-        config_button = tk.Button(lbframe, text='Save config', command=self.save_config)
+        config_button = tk.Button(lbframe, text='Save parameters', command=self.save_config)
         config_button.pack(side=tk.BOTTOM)
         lbframe.pack(fill=tk.BOTH, side=tk.LEFT)
         self.add_text_inputs()

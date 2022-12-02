@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import filedialog as fd
+from tkinter import ttk
 from pathlib import Path
 
 config_filetypes = (
@@ -28,7 +29,7 @@ def save_file(mainframe, dr=None):
 
 
 def add_file_input(mainFrame, txt, var, cmd):
-    f = tk.Frame(mainFrame)
+    f = ttk.Frame(mainFrame)
     lbl = tk.Label(f, text=txt)
     lbl.pack(side=tk.LEFT)
     lbl = tk.Label(f, textvariable=var, bg='white')

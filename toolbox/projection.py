@@ -2,12 +2,12 @@ import mne
 import numpy as np
 import matplotlib.pyplot as plt
 
-
 # topomap scale
-ch_types = ['mag','grad','eeg']
+ch_types = ['mag', 'grad', 'eeg']
 scale = {'mag': 1200, 'grad': 400, 'eeg': 40}
-chan_toplot = {'mag':['MEG2111'],'grad':['MEG2112'],'eeg': ['EEG070']}
-col_cond = {'trav': 'crimson', 'stand':'dodgerblue', 'trav_out': 'crimson', 'trav_in': 'darkorange', 'fov_out': 'darkmagenta'}
+chan_toplot = {'mag': ['MEG2111'], 'grad': ['MEG2112'], 'eeg': ['EEG070']}
+col_cond = {'trav': 'crimson', 'stand': 'dodgerblue', 'trav_out': 'crimson', 'trav_in': 'darkorange',
+            'fov_out': 'darkmagenta'}
 
 
 def project_wave(measured, forward, c_space, c_wave, stc_gen):
