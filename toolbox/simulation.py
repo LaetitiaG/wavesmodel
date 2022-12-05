@@ -214,7 +214,7 @@ def generate_simulation(sensorsFile, mri_paths, forward_model, stim, mri_path):
     tstep = 1 / info['sfreq']
     times = np.arange(2 / tstep + 1) * tstep
 
-    labels = load_labels(mri_paths)
+    labels = load_retino(mri_paths)
     inds_label, angle_label, eccen_label = labels
 
     eccen_screen, e_cort = create_screen_grid(screen_config)
