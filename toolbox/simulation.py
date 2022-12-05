@@ -14,6 +14,10 @@ TRAV_OUT = "trav_out"
 STANDING = "standing"
 TRAV_IN = "trav_in"
 
+# select in which label the simulation is done 
+# 1	V1 / 2	V2 / 3	V3 / 4	hV4 / 5	VO1 / 6	VO2 / 7	LO1 / 8	LO2 / 9	TO1
+# 10	TO2 / 11	V3b / 12	V3a
+lab_ind = 1 
 
 def apply_tuple(t, f):
     x, y = t
@@ -33,9 +37,6 @@ def load_retino(mri_paths):
     """
     retino_labels = apply_tuple(mri_paths.varea, mgh.load)
     # Select V1 (according to the codes used in varea)
-    # 1	V1 / 2	V2 / 3	V3 / 4	hV4 / 5	VO1 / 6	VO2 / 7	LO1 / 8	LO2 / 9	TO1
-    # 10	TO2 / 11	V3b / 12	V3a
-    lab_ind = 1
     msk_label = apply_tuple(retino_labels, lambda x: x.get_fdata() == lab_ind)
 
     def mask(tpl): return apply_mask(msk=msk_label, tpl=tpl)
@@ -86,7 +87,8 @@ def create_screen_grid(screen_config):
 
 def create_stim_inducer(screen_config, times, params, e_cort, stim):
     """
-    Recreate stim inducer
+    Create the visual stimulus presented on the screen, which should induced cortical waves.
+    Return values of the screen luminance for each time point and pixel.
     """
     sin_inducer = np.zeros((len(times), screen_config.height, screen_config.width))
 
@@ -217,8 +219,8 @@ def generate_simulation(sensorsFile, mri_paths, forward_model, stim, mri_path):
     labels = load_retino(mri_paths)
     inds_label, angle_label, eccen_label = labels
 
+    # Create the visual stimulus presented on the screen, which should induced cortical waves
     eccen_screen, e_cort = create_screen_grid(screen_config)
-    # Recreate stim inducer
     sin_inducer = create_stim_inducer(screen_config, times, params, e_cort, stim)
 
     #define function to handle eccen_label as a tuple of hemis
