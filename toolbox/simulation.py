@@ -26,7 +26,7 @@ def apply_mask(msk, tpl):
     return x[m1], y[m2]
 
 
-def load_labels(mri_paths):
+def load_retino(mri_paths):
     """
     Load retinotopy, visual phase and eccentricity for labels of both hemis
     Return follows the form of utils.mri_paths with 2-tuple for both hemis
