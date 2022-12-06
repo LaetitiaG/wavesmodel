@@ -112,9 +112,10 @@ def create_stim_inducer(screen_config, times, params, e_cort, stim):
     return sin_inducer
 
 
-def map_stim_value(times, sin_inducer, eccen_screen, eccen_label):
+def create_wave_stims(c_space, times, sin_inducer, eccen_screen, angle_label, eccen_label):
     """
     Map stim values on voxel label (for lh and rh labels)
+    And return wave_label depending on c_space (full, quad, fov)
     Used with apply_tuple, avoiding to have to handle tuple inside
     """
     wave_label = np.zeros(len(eccen_label), len(times))
@@ -124,29 +125,23 @@ def map_stim_value(times, sin_inducer, eccen_screen, eccen_label):
         imin = np.argmin(np.abs(eccen_screen - eccen_label[ind_l]))
         ind_stim = np.unravel_index(imin, np.shape(eccen_screen))
         wave_label[ind_l] = sin_inducer[:, ind_stim[0], ind_stim[1]]
-    return wave_label
-
-
-def create_wave_stims(wave_label, angle_label, eccen_label):
-    # Create wave stim for quadrant condition (session 1)
-    wave_quad = deepcopy(wave_label[LEFT_HEMI])
-    mask_quad = (angle_label[LEFT_HEMI] > 90 + 5) & (angle_label[LEFT_HEMI] < 180 - 5)
-    mask = np.invert(mask_quad)  # right lower quadrant
-    wave_quad[mask, :] = 0
-
-    # Create wave stim for foveal condition (session 2)
-    wave_fov = apply_tuple(wave_label, deepcopy)
-    wave_fov[LEFT_HEMI][eccen_label[0] > 5, :] = 0
-    wave_fov[RIGHT_HEMI][eccen_label[1] > 5, :] = 0
-
-    # Create stim for half left stimulated V1 = cond, other half = other cond
-    wave_halfHalf = np.zeros(np.shape(wave_label[LEFT_HEMI]))
-    # Handle this case of inverting wave types when only 1 is now available
-    wave_halfHalf[0] = wave_label[LEFT_HEMI][1]
-    wave_halfHalf[1] = wave_label[RIGHT_HEMI][0]  # switch wave types
-    wave_halfHalf[mask_quad, :] = wave_quad[mask_quad, :]
-
-    return wave_quad, wave_fov, wave_halfHalf
+    if c_space == 'full':
+        return wave_label
+    if c_space == 'quad':
+        # Create wave stim for quadrant condition (session 1)
+        wave_quad = deepcopy(wave_label[LEFT_HEMI])
+        mask_quad = (angle_label[LEFT_HEMI] > 90 + 5) & (angle_label[LEFT_HEMI] < 180 - 5)
+        mask = np.invert(mask_quad)  # right lower quadrant
+        wave_quad[mask, :] = 0
+        return wave_quad
+    elif c_space == 'fov':
+        # Create wave stim for foveal condition (session 2)
+        wave_fov = apply_tuple(wave_label, deepcopy)
+        wave_fov[LEFT_HEMI][eccen_label[0] > 5, :] = 0
+        wave_fov[RIGHT_HEMI][eccen_label[1] > 5, :] = 0
+        return wave_fov
+    else: # handle wrong c_space
+        return wave_label
 
 
 def create_stc(forward_model, times, tstep, mri_path):
@@ -163,53 +158,42 @@ def create_stc(forward_model, times, tstep, mri_path):
                                        value_fun=lambda x: x)  # labels or label_sel
 
 
-def fill_stc(stc_gen, c_space, inds_label, angle_label, eccen_label, wave_label, wave_quad):
+def fill_stc(stc_gen, c_space, inds_label, angle_label, eccen_label, wave_label):
     stc_angle = stc_gen.copy()  # only for left hemisphere
     stc_eccen = stc_gen.copy()
 
     if c_space is 'full':
         tmp = stc_gen.copy()
-        for i in inds_label[0]:  # lh
+        for i in inds_label[LEFT_HEMI]:
             if i in stc_gen.lh_vertno:
                 i_stc = np.where(i == stc_gen.lh_vertno)[0][0]
-                tmp.lh_data[i_stc] = wave_label[0][inds_label[0] == i]
-                stc_eccen.lh_data[i_stc] = eccen_label[0][inds_label[0] == i]
-                stc_angle.lh_data[i_stc] = angle_label[0][inds_label[0] == i]
+                tmp.lh_data[i_stc] = wave_label[LEFT_HEMI][inds_label[0] == i]
+                stc_eccen.lh_data[i_stc] = eccen_label[LEFT_HEMI][inds_label[0] == i]
+                stc_angle.lh_data[i_stc] = angle_label[LEFT_HEMI][inds_label[0] == i]
 
-        for i in inds_label[1]:  # rh
+        for i in inds_label[RIGHT_HEMI]:
             if i in stc_gen.rh_vertno:
                 i_stc = np.where(i == stc_gen.rh_vertno)[0][0]
-                tmp.rh_data[i_stc] = wave_label[1][inds_label[1] == i]
-                stc_eccen.rh_data[i_stc] = eccen_label[1][inds_label[1] == i]
-                stc_angle.rh_data[i_stc] = angle_label[1][inds_label[1] == i]
+                tmp.rh_data[i_stc] = wave_label[RIGHT_HEMI][inds_label[1] == i]
+                stc_eccen.rh_data[i_stc] = eccen_label[RIGHT_HEMI][inds_label[1] == i]
+                stc_angle.rh_data[i_stc] = angle_label[RIGHT_HEMI][inds_label[1] == i]
         return tmp
 
     elif c_space is 'quad':
         tmp = stc_gen.copy()
-        for i in inds_label[0]:  # lh
+        for i in inds_label[LEFT_HEMI]:
             if i in stc_gen.lh_vertno:
                 i_stc = np.where(i == stc_gen.lh_vertno)[0][0]
-                tmp.lh_data[i_stc] = wave_quad[inds_label[0] == i]
+                tmp.lh_data[i_stc] = wave_label[inds_label[0] == i]
 
         return tmp
-
-
-def fill_wave_activity(stc_gen, inds_label, wave_halfHalf):
-    ## V1 with half cond, the other half other cond
-    tmp = stc_gen.copy()
-    for i in inds_label[0]:  # lh
-        if i in stc_gen.lh_vertno:
-            i_stc = np.where(i == stc_gen.lh_vertno)[0][0]
-            tmp.lh_data[i_stc] = wave_halfHalf[inds_label[0] == i]
-
-    return tmp
 
 
 def generate_simulation(sensorsFile, mri_paths, forward_model, stim, mri_path):
     # Magic numbers -- must be parameters later
     screen_config = utils.screen_params(1920, 1080, 78, 44.2)
     params = utils.simulation_params(5, 0.05, 10e-9, np.pi / 2)
-    c_space = 'full'
+    c_space = 'full' #, quad, fov
 
     info = mne.io.read_info(sensorsFile)
     # Time Parameters for the source signal
@@ -221,18 +205,15 @@ def generate_simulation(sensorsFile, mri_paths, forward_model, stim, mri_path):
 
     # Create the visual stimulus presented on the screen, which should induced cortical waves
     eccen_screen, e_cort = create_screen_grid(screen_config)
-    sin_inducer = create_stim_inducer(screen_config, times, params, e_cort, stim)
+    stim_inducer = create_stim_inducer(screen_config, times, params, e_cort, stim)
 
-    #define function to handle eccen_label as a tuple of hemis
-    def map_stim(eccen_lbl): map_stim_value(times, sin_inducer, eccen_screen, eccen_lbl)
-
-    wave_label = apply_tuple(eccen_label, map_stim)
-    wave_quad, wave_fov, wave_halfHalf = create_wave_stims(wave_label, angle_label, eccen_label)
+    # return wave_label depending on c_space (full, quad or fov)
+    wave_label = create_wave_stims(c_space, times, stim_inducer, eccen_screen, angle_label, eccen_label)
 
     stc_gen = create_stc(forward_model, times, tstep, mri_path)
-    
-    stc_wave = fill_wave_activity(stc_gen, inds_label, wave_halfHalf)
-    stc = fill_stc(stc_gen, c_space, *labels, wave_label, wave_quad)
+
+    # only wave_label (which depends on c_space)
+    stc = fill_stc(stc_gen, c_space, *labels, wave_label)
 
 
 if __name__ == '__main__':
