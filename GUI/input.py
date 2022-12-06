@@ -73,7 +73,7 @@ class MainFrame(ttk.Frame):
             self.listbox.delete(idx)
 
     def load_config_file(self):
-        filepath = tools.save_file(self, self.config_file)
+        filepath = tools.select_file(self, self.config_file)
         self.config_file.set(filepath)
         config_obj = configIO.get_config_object(filepath)
         sim_obj = configIO.get_config_object(SIM_CONF)

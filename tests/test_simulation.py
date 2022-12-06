@@ -2,7 +2,7 @@ import unittest
 
 from utils import mri_paths, simulation_params, screen_params
 import toolbox.simulation as simulation
-from toolbox.simulation import load_labels, create_stim_inducer
+from toolbox.simulation import load_retino, create_stim_inducer
 from pathlib import Path
 import numpy as np
 
@@ -19,7 +19,7 @@ class TestLoadLabels(unittest.TestCase):
                       (Path(subj_dir / 'lh.inferred_eccen.mgz'), Path(subj_dir / 'rh.inferred_eccen.mgz')))
 
     def test_return_len(self):
-        ret = load_labels(self.paths)
+        ret = load_retino(self.paths)
         self.assertEqual(len(ret), 3)
         varea, angle, eccen = ret
         self.assertEqual(len(varea), 2)
