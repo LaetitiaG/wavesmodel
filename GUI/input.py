@@ -15,8 +15,7 @@ class MainFrame(ttk.Frame):
         super(MainFrame, self).__init__(container)
         self.listbox = None
         self.list_items = tk.Variable(value=[])
-        self.save_file = tk.StringVar(self)
-        self.config_file = tk.StringVar(self, Path('/'))
+        self.config_file = tk.StringVar(self, Path(utils.CONFIG_PATH).resolve())
         self.main_window()
 
     def main_window(self):
@@ -39,7 +38,6 @@ class MainFrame(ttk.Frame):
         add_button = tk.Button(button_frame, text='ADD', command=self.entry_window)
         edit_button = tk.Button(button_frame, text='EDIT', command=self.edit_entry)
         remove_button = tk.Button(button_frame, text='REMOVE', command=self.remove_entry)
-        loadconf_button = tk.Button(button_frame, text='LOAD CONFIG', command=self.load_config_file)
         for widget in button_frame.winfo_children():
             widget.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
 
@@ -73,30 +71,42 @@ class MainFrame(ttk.Frame):
             self.listbox.delete(idx)
 
     def load_config_file(self):
-        filepath = tools.select_file(self, self.config_file)
+        filepath = tools.select_file_window(self, self.config_file)
         self.config_file.set(filepath)
         config_obj = configIO.get_config_object(filepath)
         sim_obj = configIO.get_config_object(SIM_CONF)
         screen_obj = configIO.get_config_object(SCREEN_CONF)
         for section in config_obj.sections():
-            sim_section = config_obj[section]['simulation']
-            screen_section = config_obj[section]['screen']
-            sim_vals = sim_obj[sim_section].values()
-            screen_vals = screen_obj[screen_section].values()
-            entry = utils.Entry()
-            entry.set_simulation_params(sim_vals)
-            entry.set_screen_params(screen_vals)
-            self.listbox.insert(tk.END, entry)
-
-    def save_config_frame(self):
-        save_file = tk.StringVar()
-        f = tools.add_file_input(self, 'Save location', save_file, tools.save_file)
-        f['padding'] = (10, 5 )
-        btn = tk.Button(f, text='SAVE', command=self.save_config)
-        btn.pack(side=tk.LEFT)
+            try:
+                sim_section = config_obj[section]['simulation']
+                screen_section = config_obj[section]['screen']
+                sim_vals = sim_obj[sim_section].values()
+                screen_vals = screen_obj[screen_section].values()
+                entry = utils.Entry()
+                entry.set_simulation_params(sim_vals)
+                entry.set_screen_params(screen_vals)
+                self.listbox.insert(tk.END, entry)
+            except KeyError:
+                mb.showerror('Error', 'You must select a valid Entry configuration file')
+                break
 
     def save_config(self):
-        return # TODO save the entries in a file
+        file = tools.save_file_window(self, self.config_file)
+        config_obj = configIO.get_config_object(file)
+        section_idx = 1
+        while config_obj.has_section('entry' + str(section_idx)):
+            section_idx += 1
+        entry_list = self.list_items.get()
+
+
+
+    def save_config_frame(self):
+        f = tools.show_file_path(self, 'Config file', self.config_file)
+        f['padding'] = (10, 5)
+        load_btn = tk.Button(f, text='LOAD', command=self.load_config_file)
+        save_btn = tk.Button(f, text='SAVE', command=self.save_config)
+        load_btn.pack(side=tk.LEFT)
+        save_btn.pack(side=tk.LEFT)
 
     def run_simulation(self):
         return
@@ -186,13 +196,13 @@ class EntryWindow(tk.Toplevel):
         f = ttk.Frame(notebk)
         f['padding'] = (5, 10)
         f.pack(fill=tk.BOTH)
-        tools.add_file_input(f, 'Measured data', self.measuredStringVar, tools.select_file)
+        tools.add_file_input(f, 'Measured data', self.measuredStringVar, tools.select_file_window)
 
         self.simulation_frame = ConfigFrame(notebk, self.entry.simulation_params, SIM_CONF)
         self.screen_frame = ConfigFrame(notebk, self.entry.screen_params, SCREEN_CONF)
 
         mri_frame = ttk.Frame(notebk)
-        tools.add_file_input(mri_frame, 'Retinotopic map MRI', self.retinoStringVar, tools.select_file)
+        tools.add_file_input(mri_frame, 'Retinotopic map MRI', self.retinoStringVar, tools.select_file_window)
         mri_frame.pack(fill=tk.BOTH)
 
         notebk.add(f, text='First version')

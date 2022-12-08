@@ -10,7 +10,7 @@ config_filetypes = (
 )
 
 
-def select_file(mainframe, dr=None):
+def select_file_window(mainframe, dr=None):
     f = fd.askopenfilename(
         parent=mainframe,
         title='Open a config file',
@@ -19,7 +19,7 @@ def select_file(mainframe, dr=None):
     return Path(f)
 
 
-def save_file(mainframe, dr=None):
+def save_file_window(mainframe, dr=None):
     f = fd.asksaveasfilename(
         parent=mainframe,
         title='Save your file',
@@ -28,15 +28,20 @@ def save_file(mainframe, dr=None):
     return Path(f)
 
 
-def add_file_input(mainFrame, txt, var, cmd):
+def show_file_path(mainFrame, txt, var):
     f = ttk.Frame(mainFrame)
     lbl = tk.Label(f, text=txt)
     lbl.pack(side=tk.LEFT)
     lbl = tk.Label(f, textvariable=var, bg='white')
     lbl.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    f.pack(side=tk.TOP, fill=tk.X, expand=True)
+    return f
+
+
+def add_file_input(mainFrame, txt, var, cmd):
+    f = show_file_path(mainFrame, txt, var)
     load_button = tk.Button(f, text='Browse', command=lambda: var.set(cmd(mainFrame, txt)))
     load_button.pack(side=tk.LEFT)
-    f.pack(side=tk.TOP, fill=tk.X, expand=True)
     return f
 
 
