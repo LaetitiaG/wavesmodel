@@ -66,3 +66,6 @@ class Listbox(tk.Listbox):
     def get_value(self, idx):
         return self.value[idx]
 
+    def get_value_list(self):
+        return self.value
+

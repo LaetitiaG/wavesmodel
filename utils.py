@@ -41,4 +41,10 @@ class Entry:
     def set_mri_params(self, mri_params_list):
         self.mri_params = mri_paths(*mri_params_list)
 
+    def create_dictionary(self):
+        entry_dict = {'measured': str(self.measured), 'retino_map': str(self.retino_map)}
+        entry_dict.update(self.simulation_params._asdict())
+        entry_dict.update(self.screen_params._asdict())
+        return entry_dict
+
 

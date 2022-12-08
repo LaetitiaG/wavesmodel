@@ -96,7 +96,13 @@ class MainFrame(ttk.Frame):
         section_idx = 1
         while config_obj.has_section('entry' + str(section_idx)):
             section_idx += 1
-        entry_list = self.list_items.get()
+        entry_list = self.listbox.get_value_list()
+        for entry in entry_list:
+            section = 'entry' + str(section_idx)
+            config_obj.add_section(section)
+            config_obj[section] = entry.create_dictionary()
+            section_idx += 1
+        configIO.write_config(config_obj, file)
 
 
 
