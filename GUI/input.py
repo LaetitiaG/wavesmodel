@@ -88,7 +88,6 @@ class MainFrame(ttk.Frame):
             entry.set_screen_params(screen_vals)
             self.listbox.insert(tk.END, entry)
 
-
     def save_config_frame(self):
         save_file = tk.StringVar()
         f = tools.add_file_input(self, 'Save location', save_file, tools.save_file)
@@ -150,7 +149,7 @@ class ConfigFrame(ttk.Frame):
             txt = ttk.Entry(f)
             self.txtInput.append(txt)
             lbl.pack(side=tk.LEFT)
-            txt.pack(side=tk.LEFT, fill=tk.BOTH)
+            txt.pack(side=tk.LEFT, fill=tk.X)
             f.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
     def load_params(self):
