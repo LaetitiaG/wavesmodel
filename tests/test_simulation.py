@@ -2,7 +2,7 @@ import unittest
 
 from utils import mri_paths, simulation_params, screen_params
 import toolbox.simulation as simulation
-from toolbox.simulation import load_retino, create_stim_inducer, create_screen_grid
+from toolbox.simulation import *
 from pathlib import Path
 import numpy as np
 

@@ -126,8 +126,25 @@ def create_screen_grid(screen_config):
 
 def create_stim_inducer(screen_config, times, params, e_cort, stim):
     """
-    Create the visual stimulus presented on the screen, which should induced cortical waves.
-    Return values of the screen luminance for each time point and pixel.
+    Create the visual stimulus presented on the screen, which should induce cortical waves.
+
+    Args:
+        screen_config: A named tuple with the following fields:
+            - width (int): The width of the screen in pixels.
+            - height (int): The height of the screen in pixels.
+            - distanceFrom (float): The distance from the screen in cm.
+            - heightCM (float): The height of the screen in cm.
+        times (ndarray): An array of time points.
+        params: A named tuple with the following fields:
+            - amplitude (float): The amplitude of the stimulus.
+            - freq_spacial (float): The spatial frequency of the stimulus.
+            - freq_temp (float): The temporal frequency of the stimulus.
+            - phase_offset (float): The phase offset of the stimulus.
+        e_cort (ndarray): An array of cortical distances.
+        stim (str): The type of stimulation, one of `TRAV_OUT`, `STANDING`, or `TRAV_IN`.
+
+    Returns:
+        An ndarray containing the screen luminance values for each time point and pixel.
     """
     sin_inducer = np.zeros((len(times), screen_config.height, screen_config.width))
 
