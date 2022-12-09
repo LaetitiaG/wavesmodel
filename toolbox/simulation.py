@@ -19,6 +19,7 @@ TRAV_IN = "trav_in"
 # 10	TO2 / 11	V3b / 12	V3a
 lab_ind = 1 
 
+
 def apply_tuple(t, f):
     x, y = t
     return f(x), f(y)
@@ -30,12 +31,21 @@ def apply_mask(msk, tpl):
     return x[m1], y[m2]
 
 
+def safe_tupple_load(retino_tuple):
+    try:
+        return apply_tuple(retino_tuple, mgh.load)
+    except:
+        raise ValueError('Invalid input data')
+
+
 def load_retino(mri_paths):
     """
     Load retinotopy, visual phase and eccentricity for labels of both hemis
     Return follows the form of utils.mri_paths with 2-tuple for both hemis
     """
-    retino_labels = apply_tuple(mri_paths.varea, mgh.load)
+    if any(path is None for path in mri_paths):
+        raise ValueError('Missing input data')
+    retino_labels = safe_tupple_load(mri_paths.varea)
     # Select V1 (according to the codes used in varea)
     msk_label = apply_tuple(retino_labels, lambda x: x.get_fdata() == lab_ind)
 
@@ -43,9 +53,9 @@ def load_retino(mri_paths):
 
     inds_label = apply_tuple(retino_labels,
                              lambda x: np.where(np.squeeze(x.get_fdata()) == lab_ind)[0])
-    angle = apply_tuple(mri_paths.angle, mgh.load)
+    angle = safe_tupple_load(mri_paths.angle)
     angle_label = mask(apply_tuple(angle, lambda x: x.get_fdata()))
-    eccen = apply_tuple(mri_paths.eccen, mgh.load)
+    eccen = safe_tupple_load(mri_paths.eccen)
     eccen_label = mask(apply_tuple(eccen, lambda x: x.get_fdata()))
     return inds_label, angle_label, eccen_label
 
@@ -167,7 +177,7 @@ def fill_stc(stc_gen, c_space, inds_label, angle_label, eccen_label, wave_label,
     stc_angle = stc_gen.copy()  # only for left hemisphere
     stc_eccen = stc_gen.copy()
 
-    if c_space is 'full':
+    if c_space == 'full':
         tmp = stc_gen.copy()
         for i in inds_label[0]:  # lh
             if i in stc_gen.lh_vertno:
@@ -184,7 +194,7 @@ def fill_stc(stc_gen, c_space, inds_label, angle_label, eccen_label, wave_label,
                 stc_angle.rh_data[i_stc] = angle_label[1][inds_label[1] == i]
         return tmp
 
-    elif c_space is 'quad':
+    elif c_space == 'quad':
         tmp = stc_gen.copy()
         for i in inds_label[0]:  # lh
             if i in stc_gen.lh_vertno:

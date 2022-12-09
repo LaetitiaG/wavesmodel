@@ -7,24 +7,57 @@ from pathlib import Path
 import numpy as np
 
 
-class TestLoadLabels(unittest.TestCase):
+class TestLoadRetino(unittest.TestCase):
     """
     Test function for simulation.load_labels
     Needs server to be mounted on Z: to work
     """
-    subj_dir = Path('Z:/DugueLab_Research/Current_Projects/LGr_GM_JW_DH_LD_WavesModel'
-                    '/Experiments/Data/data_MRI/preproc/freesurfer/2XXX72/prfs')
-    paths = mri_paths((Path(subj_dir / 'lh.inferred_varea.mgz'), Path(subj_dir / 'rh.inferred_varea.mgz')),
-                      (Path(subj_dir / 'lh.inferred_angle.mgz'), Path(subj_dir / 'rh.inferred_angle.mgz')),
-                      (Path(subj_dir / 'lh.inferred_eccen.mgz'), Path(subj_dir / 'rh.inferred_eccen.mgz')))
+    def create_test_mri_paths_valid(self):
+        subj_dir = Path('Z:/DugueLab_Research/Current_Projects/LGr_GM_JW_DH_LD_WavesModel'
+                        '/Experiments/Data/data_MRI/preproc/freesurfer/2XXX72/prfs')
+        paths = mri_paths((Path(subj_dir / 'lh.inferred_varea.mgz'), Path(subj_dir / 'rh.inferred_varea.mgz')),
+                          (Path(subj_dir / 'lh.inferred_angle.mgz'), Path(subj_dir / 'rh.inferred_angle.mgz')),
+                          (Path(subj_dir / 'lh.inferred_eccen.mgz'), Path(subj_dir / 'rh.inferred_eccen.mgz')))
+        return paths
+
+    def create_test_mri_paths_missing_data(self):
+        subj_dir = Path('./')
+        paths = mri_paths((Path(subj_dir / 'lh.inferred_varea.mgz'), Path(subj_dir / 'rh.inferred_varea.mgz')),
+                          (Path(subj_dir / 'lh.inferred_angle.mgz'), Path(subj_dir / 'rh.inferred_angle.mgz')),
+                          (Path(subj_dir / 'lh.inferred_eccen.mgz'), Path(subj_dir / 'rh.inferred_eccen.mgz')))
+        return paths
+
+    def create_test_mri_paths_invalid_data(self):
+        subj_dir = Path('./config')
+        paths = mri_paths((Path(subj_dir / 'entry.ini'), Path(subj_dir / 'entry.ini')),
+                          (Path(subj_dir / 'entry.ini'), Path(subj_dir / 'entry.ini')),
+                          (Path(subj_dir / 'entry.ini'), Path(subj_dir / 'entry.ini')))
+        return paths
 
     def test_return_len(self):
-        ret = load_retino(self.paths)
+        mri_paths = self.create_test_mri_paths_valid()
+        ret = load_retino(mri_paths)
         self.assertEqual(len(ret), 3)
         varea, angle, eccen = ret
         self.assertEqual(len(varea), 2)
         self.assertEqual(len(angle), 2)
         self.assertEqual(len(eccen), 2)
+
+    def test_missing_input(self):
+        # Test the case where the input data is missing
+        mri_paths = self.create_test_mri_paths_missing_data()
+
+        # Verify that the function raises an error when the input data is missing
+        with self.assertRaises(ValueError):
+            result = load_retino(mri_paths)
+
+    def test_invalid_input(self):
+        # Test the case where the input data is invalid
+        mri_paths = self.create_test_mri_paths_invalid_data()
+
+        # Verify that the function raises an error when the input data is invalid
+        with self.assertRaises(ValueError):
+            result = load_retino(mri_paths)
 
 
 class TestCreateSimInducer(unittest.TestCase):
