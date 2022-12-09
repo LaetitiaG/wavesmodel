@@ -104,8 +104,6 @@ class MainFrame(ttk.Frame):
             section_idx += 1
         configIO.write_config(config_obj, file)
 
-
-
     def save_config_frame(self):
         f = tools.show_file_path(self, 'Config file', self.config_file)
         f['padding'] = (10, 5)

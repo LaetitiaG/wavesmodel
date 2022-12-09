@@ -4,7 +4,6 @@ from utils import simulation_params, screen_params
 from dataclasses import dataclass
 import os.path as op
 from os import makedirs
-from pathlib import Path
 
 
 @dataclass
@@ -19,11 +18,13 @@ def create_config_file(config_obj, params, name, path):
 
 
 def write_config(config_object, path):
-    path = Path(path)
     if not op.exists(path.parent):
         makedirs(path.parent)
-    with open(path, 'w') as config:
-        config_object.write(config)
+
+    if not path.match("*.ini"):
+        path = path.with_suffix(".ini")
+
+    with open(path, 'w') as config:        config_object.write(config)
 
 
 def read_config(filepath):
