@@ -104,12 +104,43 @@ class TestCreateSimInducer(unittest.TestCase):
     params = simulation_params(5, 0.05, 10e-9, np.pi / 2)
     screen_config = screen_params(1920, 1080, 78, 44.2)
 
-    def test_filling_array(self):
+    def test_trav_out_stimulation(self):
+        # Create the stimulus for TRAV_OUT stimulation
         _, e_cort = simulation.create_screen_grid(self.screen_config)
         sin_inducer = create_stim_inducer(self.screen_config, self.times, self.params, e_cort, simulation.TRAV_OUT)
+
+        # Verify that the shape of the returned array is correct
         self.assertTrue(sin_inducer.shape == (len(self.times), self.screen_config.height, self.screen_config.width),
-                        "Shape error")
-        self.assertNotEqual(np.count_nonzero(sin_inducer), 0, "Array was not filled")
+                        "Shape error for TRAV_OUT stimulation")
+
+        # Verify that the array contains non-zero values
+        self.assertNotEqual(np.count_nonzero(sin_inducer), 0, "Array was not filled for TRAV_OUT stimulation")
+
+        # Verify expected value ??
+
+    def test_standing_stimulation(self):
+        # Create the stimulus for STANDING stimulation
+        _, e_cort = simulation.create_screen_grid(self.screen_config)
+        sin_inducer = create_stim_inducer(self.screen_config, self.times, self.params, e_cort, simulation.STANDING)
+
+        # Verify that the shape of the returned array is correct
+        self.assertTrue(sin_inducer.shape == (len(self.times), self.screen_config.height, self.screen_config.width),
+                        "Shape error for STANDING stimulation")
+
+        # Verify that the array contains non-zero values
+        self.assertNotEqual(np.count_nonzero(sin_inducer), 0, "Array was not filled for STANDING stimulation")
+
+    def test_trav_in_stimulation(self):
+        # Create the stimulus for TRAV_IN stimulation
+        _, e_cort = simulation.create_screen_grid(self.screen_config)
+        sin_inducer = create_stim_inducer(self.screen_config, self.times, self.params, e_cort, simulation.TRAV_IN)
+
+        # Verify that the shape of the returned array is correct
+        self.assertTrue(sin_inducer.shape == (len(self.times), self.screen_config.height, self.screen_config.width),
+                        "Shape error for TRAV_IN stimulation")
+
+        # Verify that the array contains non-zero values
+        self.assertNotEqual(np.count_nonzero(sin_inducer), 0, "Array was not filled for TRAV_IN stimulation")
 
 
 if __name__ == '__main__':
