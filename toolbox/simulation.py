@@ -41,7 +41,18 @@ def safe_tupple_load(retino_tuple):
 def load_retino(mri_paths):
     """
     Load retinotopy, visual phase and eccentricity for labels of both hemis
-    Return follows the form of utils.mri_paths with 2-tuple for both hemis
+    Args:
+        mri_paths: A named tuple with the following fields:
+            - varea (tuple): A tuple containing the paths to the varea MRIs for the left and right hemispheres.
+            - angle (tuple): A tuple containing the paths to the angle MRIs for the left and right hemispheres.
+            - eccen (tuple): A tuple containing the paths to the eccen MRIs for the left and right hemispheres.
+
+    Returns: A tuple containing the following elements:
+        - inds_label (tuple): A tuple containing the indices of the labeled voxels in the left and right hemispheres.
+        - angle_label (tuple): A tuple containing the angle values for the labeled voxels
+            in the left and right hemispheres.
+        - eccen_label (tuple): A tuple containing the eccentricity values for the labeled voxels
+            in the left and right hemispheres.
     """
     if any(path is None for path in mri_paths):
         raise ValueError('Missing input data')
@@ -76,22 +87,40 @@ def create_screen_grid(screen_config):
     Returns 2 screen grids:
     eccen_screen: each screen voxel has its eccentricity value in cm
     e_cort: corresponds to putative cortical distance
+
+    Args:
+        screen_config: A named tuple with the following fields:
+            - width (int): The width of the screen in pixels.
+            - height (int): The height of the screen in pixels.
+            - distanceFrom (int): The distance from the screen in cm.
+            - heightCM (int): The height of the screen in cm.
+
+    Returns:
+        A tuple containing the following elements:
+            - eccen_screen (np.ndarray): A 2D array of eccentricity values for each screen voxel.
+            - e_cort (np.ndarray): A 2D array of putative cortical distances.
     """
-    widthScreenPix = screen_config.width
-    heightScreenPix = screen_config.height
-    heightScreenCM = screen_config.heightCM
-    distanceFromScreen = screen_config.distanceFrom
-    halfXscreenPix, halfYscreenPix = int(widthScreenPix / 2), int(heightScreenPix / 2)
-    cmPerPixel = heightScreenCM / heightScreenPix  # cm
-    degsPerPixel = np.degrees(
-        2 * np.arctan(heightScreenCM / (2 * heightScreenPix * distanceFromScreen)))  # deg of visual angle
-    widthArray = np.arange(-halfXscreenPix, halfXscreenPix, step=1, dtype=int)
-    heightArray = np.arange(-halfYscreenPix, halfYscreenPix, step=1, dtype=int)
-    [x, y] = np.meshgrid(widthArray, heightArray)  # coordinates in pixels
-    eccen_screen = np.sqrt((x * cmPerPixel) ** 2 + (y * cmPerPixel) ** 2)
+    # Check if any of the screen_config values are invalid
+    if any(value <= 0 for value in screen_config):
+        raise ValueError('Invalid input data')
+
+    width_screen_pix = screen_config.width
+    height_screen_pix = screen_config.height
+    height_screen_cm = screen_config.heightCM
+    distance_from_screen = screen_config.distanceFrom
+    half_x_screen_pix = int(width_screen_pix / 2)
+    half_y_screen_pix = int(height_screen_pix / 2)
+    cm_per_pixel = height_screen_cm / height_screen_pix  # cm
+    degs_per_pixel = np.degrees(
+        2 * np.arctan(height_screen_cm / (2 * height_screen_pix * distance_from_screen)))  # deg of visual angle
+    width_array = np.arange(-half_x_screen_pix, half_x_screen_pix, step=1, dtype=int)
+    height_array = np.arange(-half_y_screen_pix, half_y_screen_pix, step=1, dtype=int)
+    x, y = np.meshgrid(width_array, height_array)  # coordinates in pixels
+    eccen_screen = np.sqrt((x * cm_per_pixel) ** 2 + (y * cm_per_pixel) ** 2)
 
     # Create screen grid corresponding to putative cortical distance
-    e_cort = cort_eccen_mm(np.sqrt((x * degsPerPixel) ** 2 + (y * degsPerPixel) ** 2))  # in mm of cortex
+    e_cort = cort_eccen_mm(np.sqrt((x * degs_per_pixel) ** 2 + (y * degs_per_pixel) ** 2))  # in mm of cortex
+
     return eccen_screen, e_cort
 
 

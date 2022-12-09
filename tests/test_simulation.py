@@ -2,7 +2,7 @@ import unittest
 
 from utils import mri_paths, simulation_params, screen_params
 import toolbox.simulation as simulation
-from toolbox.simulation import load_retino, create_stim_inducer
+from toolbox.simulation import load_retino, create_stim_inducer, create_screen_grid
 from pathlib import Path
 import numpy as np
 
@@ -58,6 +58,41 @@ class TestLoadRetino(unittest.TestCase):
         # Verify that the function raises an error when the input data is invalid
         with self.assertRaises(ValueError):
             result = load_retino(mri_paths)
+
+
+class TestCreateScreenGrid(unittest.TestCase):
+
+    def create_test_screen_config_valid(self):
+        screen_config = screen_params(1920, 1080, 78, 44.2)
+        # define the expected output for the upper input
+        expected_eccen_screen = 0
+        expected_e_cort = 0
+        expected_output = (expected_eccen_screen, expected_e_cort)
+        return screen_config, expected_output
+
+    def test_create_screen_grid_output(self):
+        screen_config, expected_output = self.create_test_screen_config_valid()
+        # Call the create_screen_grid function with the test data
+        result = create_screen_grid(screen_config)
+
+        # Verify that the output is as expected
+        self.assertEqual(result, expected_output)
+
+    def test_missing_input(self):
+        # Test the case where the input data is missing
+        screen_config = None
+
+        # Verify that the function raises an error when the input data is missing
+        with self.assertRaises(ValueError):
+            result = create_screen_grid(screen_config)
+
+    def test_invalid_input(self):
+        # Test the case where the input data is invalid
+        screen_config = screen_params(1920, -1080, 78, 0)
+
+        # Verify that the function raises an error when the input data is invalid
+        with self.assertRaises(ValueError):
+            result = create_screen_grid(screen_config)
 
 
 class TestCreateSimInducer(unittest.TestCase):
