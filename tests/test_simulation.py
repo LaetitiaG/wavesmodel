@@ -9,7 +9,7 @@ import numpy as np
 
 class TestLoadRetino(unittest.TestCase):
     """
-    Test function for simulation.load_labels
+    Test function for simulation.load_retino
     Needs server to be mounted on Z: to work
     """
     def create_test_mri_paths_valid(self):
@@ -61,11 +61,14 @@ class TestLoadRetino(unittest.TestCase):
 
 
 class TestCreateScreenGrid(unittest.TestCase):
-
+    """
+    Test function for simulation.create_screen_grid
+    """
     def create_test_screen_config_valid(self):
-        screen_config = screen_params(1920, 1080, 78, 44.2)
+        screen_config = screen_params(20, 10, 10, 50) # 1 pix = 1cm
         # define the expected output for the upper input
-        expected_eccen_screen = 0
+        diag = np.sqrt(5**2 + 10**2) # diag valu in cm
+        expected_eccen_screen_max = np.degrees(np.arctan(diag/50))
         expected_e_cort = 0
         expected_output = (expected_eccen_screen, expected_e_cort)
         return screen_config, expected_output
