@@ -86,7 +86,7 @@ def create_screen_grid(screen_config):
     """
     Returns 2 screen grids:
     eccen_screen: each screen voxel has its eccentricity value in cm
-    e_cort: corresponds to putative cortical distance
+    e_cort: corresponds to putative cortical distance in mm of cortex
 
     Args:
         screen_config: A named tuple with the following fields:
@@ -108,11 +108,16 @@ def create_screen_grid(screen_config):
     height_screen_pix = screen_config.height
     height_screen_cm = screen_config.heightCM
     distance_from_screen = screen_config.distanceFrom
+    
+    # Find pixel coordinates of the center
     half_x_screen_pix = int(width_screen_pix / 2)
     half_y_screen_pix = int(height_screen_pix / 2)
+    
     cm_per_pixel = height_screen_cm / height_screen_pix  # cm
     degs_per_pixel = np.degrees(
         2 * np.arctan(height_screen_cm / (2 * height_screen_pix * distance_from_screen)))  # deg of visual angle
+    
+    # Create grids in pixels then in cm
     width_array = np.arange(-half_x_screen_pix, half_x_screen_pix, step=1, dtype=int)
     height_array = np.arange(-half_y_screen_pix, half_y_screen_pix, step=1, dtype=int)
     x, y = np.meshgrid(width_array, height_array)  # coordinates in pixels
