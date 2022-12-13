@@ -65,21 +65,22 @@ class TestCreateScreenGrid(unittest.TestCase):
     Test function for simulation.create_screen_grid
     """
     def create_test_screen_config_valid(self):
-        screen_config = screen_params(20, 10, 10, 50) # 1 pix = 1cm
+        screen_config = screen_params(20, 10, 50, 10) # 1 pix = 1cm
         # define the expected output for the upper input
         diag = np.sqrt(5**2 + 10**2) # diag valu in cm
         expected_eccen_screen_max = np.degrees(np.arctan(diag/50))
         expected_e_cort = 0
-        expected_output = (expected_eccen_screen, expected_e_cort)
+        expected_output = (expected_eccen_screen_max, expected_e_cort)
         return screen_config, expected_output
 
     def test_create_screen_grid_output(self):
         screen_config, expected_output = self.create_test_screen_config_valid()
         # Call the create_screen_grid function with the test data
-        result = create_screen_grid(screen_config)
+        eccen,e_cort = create_screen_grid(screen_config)
 
         # Verify that the output is as expected
-        self.assertEqual(result, expected_output)
+        self.assertEqual(np.max(eccen), expected_output[0])
+        # to do for e_cort too
 
     def test_missing_input(self):
         # Test the case where the input data is missing

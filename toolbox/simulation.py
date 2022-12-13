@@ -85,20 +85,20 @@ def cort_eccen_mm(x):
 def create_screen_grid(screen_config):
     """
     Returns 2 screen grids:
-    eccen_screen: each screen voxel has its eccentricity value in cm
-    e_cort: corresponds to putative cortical distance in mm of cortex
+    eccen_screen: grid of eccentricity value for each pixel (in °VA from the fovea)
+    e_cort: grid of putative cortical distance for each pixel (in mm of cortex)
 
     Args:
         screen_config: A named tuple with the following fields:
             - width (int): The width of the screen in pixels.
             - height (int): The height of the screen in pixels.
-            - distanceFrom (int): The distance from the screen in cm.
-            - heightCM (int): The height of the screen in cm.
+            - distanceFrom (float): The distance from the screen in cm.
+            - heightCM (float): The height of the screen in cm.
 
     Returns:
         A tuple containing the following elements:
-            - eccen_screen (np.ndarray): A 2D array of eccentricity values for each screen voxel.
-            - e_cort (np.ndarray): A 2D array of putative cortical distances.
+            - eccen_screen (np.ndarray): A 2D array of eccentricity values.
+            - e_cort (np.ndarray): A 2D array of cortical distances.
     """
     # Check if any of the screen_config values are invalid
     if any(value <= 0 for value in screen_config):
@@ -113,18 +113,18 @@ def create_screen_grid(screen_config):
     half_x_screen_pix = int(width_screen_pix / 2)
     half_y_screen_pix = int(height_screen_pix / 2)
     
-    cm_per_pixel = height_screen_cm / height_screen_pix  # cm
-    degs_per_pixel = np.degrees(
-        2 * np.arctan(height_screen_cm / (2 * height_screen_pix * distance_from_screen)))  # deg of visual angle
-    
-    # Create grids in pixels then in cm
+    # Create grids in pixels then in cm from the center
     width_array = np.arange(-half_x_screen_pix, half_x_screen_pix, step=1, dtype=int)
     height_array = np.arange(-half_y_screen_pix, half_y_screen_pix, step=1, dtype=int)
     x, y = np.meshgrid(width_array, height_array)  # coordinates in pixels
-    eccen_screen = np.sqrt((x * cm_per_pixel) ** 2 + (y * cm_per_pixel) ** 2)
+    cm_per_pixel = height_screen_cm / height_screen_pix  # cm
+    eccen_screen_cm = np.sqrt((x * cm_per_pixel) ** 2 + (y * cm_per_pixel) ** 2)
 
+    # Create grids in °VA
+    eccen_screen = np.degrees(np.arctan(eccen_screen_cm/distance_from_screen))
+    
     # Create screen grid corresponding to putative cortical distance
-    e_cort = cort_eccen_mm(np.sqrt((x * degs_per_pixel) ** 2 + (y * degs_per_pixel) ** 2))  # in mm of cortex
+    e_cort = cort_eccen_mm(eccen_screen)  # in mm of cortex
 
     return eccen_screen, e_cort
 
