@@ -1,10 +1,11 @@
 import sys
+from copy import deepcopy
+
 import mne
 import nibabel.freesurfer.mghformat as mgh
 import numpy as np
-from copy import deepcopy
+
 import utils
-from collections import namedtuple
 
 ## Constant to acces lh and rh in tuple
 LEFT_HEMI = 0
@@ -17,7 +18,7 @@ TRAV_IN = "trav_in"
 # select in which label the simulation is done 
 # 1	V1 / 2	V2 / 3	V3 / 4	hV4 / 5	VO1 / 6	VO2 / 7	LO1 / 8	LO2 / 9	TO1
 # 10	TO2 / 11	V3b / 12	V3a
-lab_ind = 1 
+lab_ind = 1
 
 
 def apply_tuple(t, f):
@@ -41,19 +42,21 @@ def safe_tupple_load(retino_tuple):
 def load_retino(mri_paths):
     """
     Load retinotopy, visual phase and eccentricity for labels of both hemis
+
     Args:
         mri_paths: A named tuple with the following fields:
             - varea (tuple): A tuple containing the paths to the varea MRIs for the left and right hemispheres.
             - angle (tuple): A tuple containing the paths to the angle MRIs for the left and right hemispheres.
             - eccen (tuple): A tuple containing the paths to the eccen MRIs for the left and right hemispheres.
 
-    Returns: A tuple containing the following elements:
-        - inds_label (tuple): A tuple containing the indices of the labeled voxels in the left and right hemispheres.
-        - angle_label (tuple): A tuple containing the angle values for the labeled voxels
-            in the left and right hemispheres.
-        - eccen_label (tuple): A tuple containing the eccentricity values for the labeled voxels
-            in the left and right hemispheres.
+    Returns:
+        A tuple containing the following elements:
+            - inds_label (tuple): A tuple containing the indices of the labeled voxels in the left and right hemispheres.
+            - angle_label (tuple): A tuple containing the angle values for the labeled voxels in the left and right hemispheres.
+            - eccen_label (tuple): A tuple containing the eccentricity values for the labeled voxels in the left and right hemispheres.
+
     """
+
     if any(path is None for path in mri_paths):
         raise ValueError('Missing input data')
     retino_labels = safe_tupple_load(mri_paths.varea)
@@ -72,13 +75,14 @@ def load_retino(mri_paths):
 
 
 def cort_eccen_mm(x):
-    ''' calculate distance from center of fovea in the cortex (cort_eccen in mm) given the
+    """ calculate distance from center of fovea in the cortex (cort_eccen in mm) given the
     % eccentricity in visual field (x in d.v.a)
     % cort_eccen = M.x
     % magnification inverse: M-1 = M0-1(1 + ax) with M0 = 23.07 and E2 = 0.75
     (from Fig. 9, Strasburger et al., 2011, values from  Horton and Hoyt (1991))
     % hence cort_eccen = x/M-1
-    '''
+    """
+
     return np.sign(x) * (17.3 * np.abs(x) / (np.abs(x) + 0.75))
 
 
@@ -99,7 +103,9 @@ def create_screen_grid(screen_config):
         A tuple containing the following elements:
             - eccen_screen (np.ndarray): A 2D array of eccentricity values for each screen voxel.
             - e_cort (np.ndarray): A 2D array of putative cortical distances.
+
     """
+
     # Check if any of the screen_config values are invalid
     if any(value <= 0 for value in screen_config):
         raise ValueError('Invalid input data')
@@ -111,8 +117,7 @@ def create_screen_grid(screen_config):
     half_x_screen_pix = int(width_screen_pix / 2)
     half_y_screen_pix = int(height_screen_pix / 2)
     cm_per_pixel = height_screen_cm / height_screen_pix  # cm
-    degs_per_pixel = np.degrees(
-        2 * np.arctan(height_screen_cm / (2 * height_screen_pix * distance_from_screen)))  # deg of visual angle
+    degs_per_pixel = np.degrees(2 * np.arctan(height_screen_cm / (2 * height_screen_pix * distance_from_screen)))  # deg of visual angle
     width_array = np.arange(-half_x_screen_pix, half_x_screen_pix, step=1, dtype=int)
     height_array = np.arange(-half_y_screen_pix, half_y_screen_pix, step=1, dtype=int)
     x, y = np.meshgrid(width_array, height_array)  # coordinates in pixels
@@ -146,25 +151,25 @@ def create_stim_inducer(screen_config, times, params, e_cort, stim):
     Returns:
         An ndarray containing the screen luminance values for each time point and pixel.
     """
-    sin_inducer = np.zeros((len(times), screen_config.height, screen_config.width))
 
-    if stim == TRAV_OUT:
-        def func(t): return params.amplitude * \
-                       np.sin(2 * np.pi * params.freq_spacial *
-                              e_cort - 2 * np.pi * params.freq_temp * t + params.phase_offset)
-    elif stim == STANDING:
-        def func(t): return params.amplitude * \
-                         np.sin(2 * np.pi * params.freq_spacial * e_cort + params.phase_offset) * \
-                         np.cos(2 * np.pi * params.freq_temp * t)
-    elif stim == TRAV_IN:
-        def func(t): return params.amplitude * \
-                         np.sin(2 * np.pi * params.freq_spacial *
-                                e_cort + 2 * np.pi * params.freq_temp * t + params.phase_offset)
-    else:
-        raise ValueError('Incorrect stimulation value')  # needs to be InputStimError
+    def func(t):
+        if stim == TRAV_OUT:
+            return params.amplitude * \
+                   np.sin(2 * np.pi * params.freq_spacial *
+                          e_cort - 2 * np.pi * params.freq_temp * t + params.phase_offset)
+        elif stim == STANDING:
+            return params.amplitude * \
+                   np.sin(2 * np.pi * params.freq_spacial * e_cort + params.phase_offset) * \
+                   np.cos(2 * np.pi * params.freq_temp * t)
+        elif stim == TRAV_IN:
+            return params.amplitude * \
+                   np.sin(2 * np.pi * params.freq_spacial *
+                          e_cort + 2 * np.pi * params.freq_temp * t + params.phase_offset)
+        else:
+            raise ValueError('Incorrect stimulation value')  # needs to be InputStimError
+
     # apply func on times
-    for idx, time in enumerate(times):
-        sin_inducer[idx] = func(time)
+    sin_inducer = func(times)
     return sin_inducer
 
 
@@ -173,6 +178,7 @@ def map_stim_value(times, sin_inducer, eccen_screen, eccen_label):
     Map stim values on voxel label (for lh and rh labels)
     Used with apply_tuple, avoiding to have to handle tuple inside
     """
+
     wave_label = np.zeros(len(eccen_label), len(times))
     for ind_l, l in enumerate(eccen_label):
         if l > np.max(eccen_screen):
@@ -212,7 +218,8 @@ def create_stc(forward_model, times, tstep, mri_path):
 
     # Create empty stc
     # need to indicate the directory of the freesurfer files for given subject
-    labels = mne.read_labels_from_annot(mri_path.name, subjects_dir=mri_path.parent, parc='aparc.a2009s')  # aparc.DKTatlas
+    labels = mne.read_labels_from_annot(mri_path.name, subjects_dir=mri_path.parent,
+                                        parc='aparc.a2009s')  # aparc.DKTatlas
     n_labels = len(labels)
     signal = np.zeros((n_labels, len(times)))
     return mne.simulation.simulate_stc(src, labels, signal, times[0], tstep,
@@ -279,14 +286,14 @@ def generate_simulation(sensorsFile, mri_paths, forward_model, stim, mri_path):
     eccen_screen, e_cort = create_screen_grid(screen_config)
     sin_inducer = create_stim_inducer(screen_config, times, params, e_cort, stim)
 
-    #define function to handle eccen_label as a tuple of hemis
+    # define function to handle eccen_label as a tuple of hemis
     def map_stim(eccen_lbl): map_stim_value(times, sin_inducer, eccen_screen, eccen_lbl)
 
     wave_label = apply_tuple(eccen_label, map_stim)
     wave_quad, wave_fov, wave_halfHalf = create_wave_stims(wave_label, angle_label, eccen_label)
 
     stc_gen = create_stc(forward_model, times, tstep, mri_path)
-    
+
     stc_wave = fill_wave_activity(stc_gen, inds_label, wave_halfHalf)
     stc = fill_stc(stc_gen, c_space, *labels, wave_label, wave_quad)
 
