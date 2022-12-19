@@ -52,16 +52,24 @@ class Entry:
         entry_dict.update(self.screen_params._asdict())
         return entry_dict
 
+    def __load_param_from_config(self, dic, config_file, section, param_class):
+        if config_file.has_section(section):
+            return param_class(*config_file[section].values())
+        else:
+            params = []
+            for field in simulation_params._fields:
+                params.append(dic[field])
+            return simulation_params(*params)
+
     def load_entry(self, dic, sim_config_file=None, screen_config_file=None):
         self.measured = dic['measured']
         self.retino_map = dic['retino_map']
         self.simulation_config_name = dic['simulation_config_name']
         self.screen_config_name = dic['screen_config_name']
-        if sim_config_file.has_section(self.simulation_config_name):
-            self.simulation_params = simulation_params(*sim_config_file[self.simulation_config_name].values())
-        else:
-            params = []
-            for field in simulation_params._fields:
-                params.append(dic[field])
-            self.simulation_params = simulation_params(*params)
+        self.simulation_params = self.__load_param_from_config(dic, sim_config_file,
+                                                               self.simulation_config_name,
+                                                               self.simulation_params.__class__)
+        self.screen_params = self.__load_param_from_config(dic, screen_config_file,
+                                                               self.screen_config_name,
+                                                               self.screen_params.__class__)
 
