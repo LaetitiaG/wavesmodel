@@ -22,10 +22,11 @@ def write_config(config_object, path):
 
 
 def get_config_object(filepath):
+    # needs better handling of errors
     config_object = ConfigParser()
     try:
         config_object.read(filepath)
-    except configparser.DuplicateSectionError:
+    except:
         print("ERROR: config file is invalid")
     return config_object
 

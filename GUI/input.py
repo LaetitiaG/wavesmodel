@@ -7,6 +7,7 @@ import utils
 from utils import CONFIG_PATH, SIM_CONF, SCREEN_CONF
 from pathlib import Path
 from toolbox import configIO
+from configparser import ConfigParser
 
 
 class MainFrame(ttk.Frame):
@@ -77,27 +78,21 @@ class MainFrame(ttk.Frame):
         sim_obj = configIO.get_config_object(SIM_CONF)
         screen_obj = configIO.get_config_object(SCREEN_CONF)
         for section in config_obj.sections():
-            try:
-                sim_section = config_obj[section]['simulation']
-                screen_section = config_obj[section]['screen']
-                sim_vals = sim_obj[sim_section].values()
-                screen_vals = screen_obj[screen_section].values()
-                entry = utils.Entry()
-                entry.set_simulation_params(sim_vals)
-                entry.set_screen_params(screen_vals)
-                self.listbox.insert(tk.END, entry)
-            except KeyError:
-                mb.showerror('Error', 'You must select a valid Entry configuration file')
-                break
+            entry = utils.Entry()
+            entry.load_entry(config_obj[section], sim_obj, screen_obj)
+            self.listbox.insert(tk.END, entry)
+            # except KeyError:
+            #     mb.showerror('Error', 'You must select a valid Entry configuration file')
+            #     break
 
     def save_config(self):
         file = tools.save_file_window(self, self.config_file)
-        config_obj = configIO.get_config_object(file)
+        config_obj = ConfigParser()
         section_idx = 1
-        while config_obj.has_section('entry' + str(section_idx)):
-            section_idx += 1
         entry_list = self.listbox.get_value_list()
         for entry in entry_list:
+            while config_obj.has_section('entry' + str(section_idx)):
+                section_idx += 1
             section = 'entry' + str(section_idx)
             config_obj.add_section(section)
             config_obj[section] = entry.create_dictionary()

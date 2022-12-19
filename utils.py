@@ -44,7 +44,24 @@ class Entry:
         self.mri_params = mri_paths(*mri_params_list)
 
     def create_dictionary(self):
-        entry_dict = {'measured': str(self.measured), 'retino_map': str(self.retino_map)}
+        entry_dict = {'measured': str(self.measured),
+                      'retino_map': str(self.retino_map),
+                      'simulation_config_name': self.simulation_config_name,
+                      'screen_config_name': self.screen_config_name}
         entry_dict.update(self.simulation_params._asdict())
         entry_dict.update(self.screen_params._asdict())
         return entry_dict
+
+    def load_entry(self, dic, sim_config_file=None, screen_config_file=None):
+        self.measured = dic['measured']
+        self.retino_map = dic['retino_map']
+        self.simulation_config_name = dic['simulation_config_name']
+        self.screen_config_name = dic['screen_config_name']
+        if sim_config_file.has_section(self.simulation_config_name):
+            self.simulation_params = simulation_params(*sim_config_file[self.simulation_config_name].values())
+        else:
+            params = []
+            for field in simulation_params._fields:
+                params.append(dic[field])
+            self.simulation_params = simulation_params(*params)
+
