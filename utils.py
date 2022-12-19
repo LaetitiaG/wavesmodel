@@ -28,6 +28,8 @@ class Entry:
     """Data class corresponding to the entry structure"""
     measured: Path = Path('/')
     retino_map: Path = Path('/')
+    simulation_config_name: str = 'None'
+    screen_config_name: str = 'None'
     simulation_params: simulation_params = simulation_params(*[0] * len(simulation_params._fields))
     screen_params: screen_params = screen_params(*[0] * len(screen_params._fields))
     mri_params: mri_paths = None
@@ -46,5 +48,3 @@ class Entry:
         entry_dict.update(self.simulation_params._asdict())
         entry_dict.update(self.screen_params._asdict())
         return entry_dict
-
-

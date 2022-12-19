@@ -15,7 +15,7 @@ class MainFrame(ttk.Frame):
         super(MainFrame, self).__init__(container)
         self.listbox = None
         self.list_items = tk.Variable(value=[])
-        self.config_file = tk.StringVar(self, Path(utils.CONFIG_PATH).resolve())
+        self.config_file = tk.StringVar(self, Path(CONFIG_PATH).resolve())
         self.main_window()
 
     def main_window(self):
@@ -142,7 +142,7 @@ class ConfigFrame(ttk.Frame):
         lbframe = ttk.Frame(self)
         listbox = tk.Listbox(lbframe, height=10, listvariable=self.list_items)
         listbox.pack(fill=tk.BOTH)
-        listbox.bind('<Double-1>', self.load_configs)
+        listbox.bind('<Double-1>', self.load_selected_config)
         config_button = tk.Button(lbframe, text='Save parameters', command=self.save_config)
         config_button.pack(side=tk.BOTTOM)
         lbframe.pack(fill=tk.BOTH, side=tk.LEFT)
@@ -156,10 +156,13 @@ class ConfigFrame(ttk.Frame):
     def get_config(self):
         return self.config_name, self.get_param()
 
-    def load_configs(self, event):
+    def load_selected_config(self, event):
         widget = event.widget
         idx = widget.curselection()[0]
         section = self.list_items.get()[idx]
+        self.load_config(section)
+
+    def load_config(self, section):
         values = self.config_obj[section].values()
         self.param = self.param_class(*values)
         self.load_params()
@@ -223,8 +226,8 @@ class EntryWindow(tk.Toplevel):
         self.saveButton.pack(side=tk.BOTTOM)
 
     def save_entry(self):
-        self.entry.simulation_params = self.simulation_frame.get_param()
-        self.entry.screen_params = self.screen_frame.get_param()
+        self.entry.simulation_config_name, self.entry.simulation_params = self.simulation_frame.get_config()
+        self.entry.screen_config_name, self.entry.screen_params = self.screen_frame.get_config()
         self.entry.measured = Path(self.measuredStringVar.get())
         self.entry.retino_map = Path(self.retinoStringVar.get())
         self.destroy()
