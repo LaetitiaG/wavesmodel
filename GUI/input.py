@@ -125,7 +125,18 @@ class ConfigFrame(ttk.Frame):
         self.param = param
         self.param_class = param.__class__
         self.txtInput = []
+        self.config_name = 'None'
         self.create()
+
+    def add_text_inputs(self):
+        for field in self.param._fields:
+            f = ttk.Frame(self)
+            lbl = tk.Label(f, text=field)
+            txt = ttk.Entry(f)
+            self.txtInput.append(txt)
+            lbl.pack(side=tk.LEFT)
+            txt.pack(side=tk.LEFT, fill=tk.X)
+            f.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
     def create(self):
         lbframe = ttk.Frame(self)
@@ -142,29 +153,24 @@ class ConfigFrame(ttk.Frame):
     def get_param(self):
         return self.param_class(*map(lambda x: x.get(), self.txtInput))
 
-    def save_config(self):
-        name = simpledialog.askstring("Config name", "Enter config name", parent=self)
-        params = self.get_param()
-        configIO.create_config_file(self.config_obj, params, name, self.path)
-        self.list_items.set(self.config_obj.sections())
+    def get_config(self):
+        return self.config_name, self.get_param()
 
     def load_configs(self, event):
         widget = event.widget
         idx = widget.curselection()[0]
-        sel = self.list_items.get()[idx]
-        values = self.config_obj[sel].values()
+        section = self.list_items.get()[idx]
+        values = self.config_obj[section].values()
         self.param = self.param_class(*values)
         self.load_params()
+        self.config_name = section
 
-    def add_text_inputs(self):
-        for field in self.param._fields:
-            f = ttk.Frame(self)
-            lbl = tk.Label(f, text=field)
-            txt = ttk.Entry(f)
-            self.txtInput.append(txt)
-            lbl.pack(side=tk.LEFT)
-            txt.pack(side=tk.LEFT, fill=tk.X)
-            f.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    def save_config(self):
+        section_name = simpledialog.askstring("Config name", "Enter config name", parent=self)
+        params = self.get_param()
+        configIO.create_config_section(self.config_obj, params, section_name, self.path)
+        self.list_items.set(self.config_obj.sections())
+        self.config_name = section_name
 
     def load_params(self):
         if self.param is None:

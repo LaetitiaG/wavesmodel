@@ -12,7 +12,7 @@ class Config:
     screen_params: screen_params
 
 
-def create_config_file(config_obj, params, name, path):
+def create_config_section(config_obj, params, name, path):
     config_obj[name] = params._asdict()
     write_config(config_obj, path)
 
@@ -24,7 +24,8 @@ def write_config(config_object, path):
     if not path.match("*.ini"):
         path = path.with_suffix(".ini")
 
-    with open(path, 'w') as config:        config_object.write(config)
+    with open(path, 'w') as config:
+        config_object.write(config)
 
 
 def read_config(filepath):
