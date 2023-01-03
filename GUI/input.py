@@ -7,6 +7,7 @@ import utils
 from utils import CONFIG_PATH, SIM_CONF, SCREEN_CONF
 from pathlib import Path
 from toolbox import configIO
+from configparser import ConfigParser
 
 
 class MainFrame(ttk.Frame):
@@ -15,7 +16,7 @@ class MainFrame(ttk.Frame):
         super(MainFrame, self).__init__(container)
         self.listbox = None
         self.list_items = tk.Variable(value=[])
-        self.config_file = tk.StringVar(self, Path(utils.CONFIG_PATH).resolve())
+        self.config_file = tk.StringVar(self, Path(CONFIG_PATH).resolve())
         self.main_window()
 
     def main_window(self):
@@ -77,27 +78,21 @@ class MainFrame(ttk.Frame):
         sim_obj = configIO.get_config_object(SIM_CONF)
         screen_obj = configIO.get_config_object(SCREEN_CONF)
         for section in config_obj.sections():
-            try:
-                sim_section = config_obj[section]['simulation']
-                screen_section = config_obj[section]['screen']
-                sim_vals = sim_obj[sim_section].values()
-                screen_vals = screen_obj[screen_section].values()
-                entry = utils.Entry()
-                entry.set_simulation_params(sim_vals)
-                entry.set_screen_params(screen_vals)
-                self.listbox.insert(tk.END, entry)
-            except KeyError:
-                mb.showerror('Error', 'You must select a valid Entry configuration file')
-                break
+            entry = utils.Entry()
+            entry.load_entry(config_obj[section], sim_obj, screen_obj)
+            self.listbox.insert(tk.END, entry)
+            # except KeyError:
+            #     mb.showerror('Error', 'You must select a valid Entry configuration file')
+            #     break
 
     def save_config(self):
         file = tools.save_file_window(self, self.config_file)
-        config_obj = configIO.get_config_object(file)
+        config_obj = ConfigParser()
         section_idx = 1
-        while config_obj.has_section('entry' + str(section_idx)):
-            section_idx += 1
         entry_list = self.listbox.get_value_list()
         for entry in entry_list:
+            while config_obj.has_section('entry' + str(section_idx)):
+                section_idx += 1
             section = 'entry' + str(section_idx)
             config_obj.add_section(section)
             config_obj[section] = entry.create_dictionary()
@@ -125,36 +120,8 @@ class ConfigFrame(ttk.Frame):
         self.param = param
         self.param_class = param.__class__
         self.txtInput = []
+        self.config_name = 'None'
         self.create()
-
-    def create(self):
-        lbframe = ttk.Frame(self)
-        listbox = tk.Listbox(lbframe, height=10, listvariable=self.list_items)
-        listbox.pack(fill=tk.BOTH)
-        listbox.bind('<Double-1>', self.load_configs)
-        config_button = tk.Button(lbframe, text='Save parameters', command=self.save_config)
-        config_button.pack(side=tk.BOTTOM)
-        lbframe.pack(fill=tk.BOTH, side=tk.LEFT)
-        self.add_text_inputs()
-        self.load_params()
-        self.pack(fill=tk.BOTH)
-
-    def get_param(self):
-        return self.param_class(*map(lambda x: x.get(), self.txtInput))
-
-    def save_config(self):
-        name = simpledialog.askstring("Config name", "Enter config name", parent=self)
-        params = self.get_param()
-        configIO.create_config_file(self.config_obj, params, name, self.path)
-        self.list_items.set(self.config_obj.sections())
-
-    def load_configs(self, event):
-        widget = event.widget
-        idx = widget.curselection()[0]
-        sel = self.list_items.get()[idx]
-        values = self.config_obj[sel].values()
-        self.param = self.param_class(*values)
-        self.load_params()
 
     def add_text_inputs(self):
         for field in self.param._fields:
@@ -165,6 +132,43 @@ class ConfigFrame(ttk.Frame):
             lbl.pack(side=tk.LEFT)
             txt.pack(side=tk.LEFT, fill=tk.X)
             f.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+    def create(self):
+        lbframe = ttk.Frame(self)
+        listbox = tk.Listbox(lbframe, height=10, listvariable=self.list_items)
+        listbox.pack(fill=tk.BOTH)
+        listbox.bind('<Double-1>', self.load_selected_config)
+        config_button = tk.Button(lbframe, text='Save parameters', command=self.save_config)
+        config_button.pack(side=tk.BOTTOM)
+        lbframe.pack(fill=tk.BOTH, side=tk.LEFT)
+        self.add_text_inputs()
+        self.load_params()
+        self.pack(fill=tk.BOTH)
+
+    def get_param(self):
+        return self.param_class(*map(lambda x: x.get(), self.txtInput))
+
+    def get_config(self):
+        return self.config_name, self.get_param()
+
+    def load_selected_config(self, event):
+        widget = event.widget
+        idx = widget.curselection()[0]
+        section = self.list_items.get()[idx]
+        self.load_config(section)
+
+    def load_config(self, section):
+        values = self.config_obj[section].values()
+        self.param = self.param_class(*values)
+        self.load_params()
+        self.config_name = section
+
+    def save_config(self):
+        section_name = simpledialog.askstring("Config name", "Enter config name", parent=self)
+        params = self.get_param()
+        configIO.create_config_section(self.config_obj, params, section_name, self.path)
+        self.list_items.set(self.config_obj.sections())
+        self.config_name = section_name
 
     def load_params(self):
         if self.param is None:
@@ -217,8 +221,8 @@ class EntryWindow(tk.Toplevel):
         self.saveButton.pack(side=tk.BOTTOM)
 
     def save_entry(self):
-        self.entry.simulation_params = self.simulation_frame.get_param()
-        self.entry.screen_params = self.screen_frame.get_param()
+        self.entry.simulation_config_name, self.entry.simulation_params = self.simulation_frame.get_config()
+        self.entry.screen_config_name, self.entry.screen_params = self.screen_frame.get_config()
         self.entry.measured = Path(self.measuredStringVar.get())
         self.entry.retino_map = Path(self.retinoStringVar.get())
         self.destroy()

@@ -1,18 +1,11 @@
 import configparser
 from configparser import ConfigParser
 from utils import simulation_params, screen_params
-from dataclasses import dataclass
 import os.path as op
 from os import makedirs
 
 
-@dataclass
-class Config:
-    simulation_params: simulation_params
-    screen_params: screen_params
-
-
-def create_config_file(config_obj, params, name, path):
+def create_config_section(config_obj, params, name, path):
     config_obj[name] = params._asdict()
     write_config(config_obj, path)
 
@@ -24,22 +17,16 @@ def write_config(config_object, path):
     if not path.match("*.ini"):
         path = path.with_suffix(".ini")
 
-    with open(path, 'w') as config:        config_object.write(config)
-
-
-def read_config(filepath):
-    config_object = ConfigParser()
-    config_object.read(filepath)
-    simulation = config_object["SIMULATION"]
-    sim_params = simulation_params(*simulation.values())
-    return sim_params
+    with open(path, 'w') as config:
+        config_object.write(config)
 
 
 def get_config_object(filepath):
+    # needs better handling of errors
     config_object = ConfigParser()
     try:
         config_object.read(filepath)
-    except configparser.DuplicateSectionError:
+    except:
         print("ERROR: config file is invalid")
     return config_object
 
