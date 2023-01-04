@@ -184,8 +184,8 @@ class EntryWindow(tk.Toplevel):
         self.grab_set()
         self.new = entry is None
         self.entry = utils.Entry() if self.new else entry
-        self.measuredStringVar = tk.StringVar(self, self.entry.measured)
-        self.retinoStringVar = tk.StringVar(self, self.entry.retino_map)
+        self.measuredStringVar = tk.StringVar(self, str(self.entry.measured))
+        self.retinoStringVar = tk.StringVar(self, str(self.entry.retino_map))
         self.simulation_frame = None
         self.screen_frame = None
 
