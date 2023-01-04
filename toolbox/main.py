@@ -4,26 +4,32 @@ from pathlib import Path
 
 def __check_stim(string):
     if string not in ['TRAV_OUT', 'STANDING', 'TRAV_IN']:
-        raise argparse.ArgumentTypeError('Must be one of TRAV_OUT, STANDING, TRAV_IN')
+        raise argparse.ArgumentTypeError('Must be one of TRAV_OUT, STANDING, TRAV_IN.')
     return string
 
 
-def __path(string):
+def __get_path(string):
     try:
         return Path(string)
     except Exception as e:
         raise argparse.ArgumentTypeError(f'Error: {e}')
 
 
+def __path(string):
+    p = __get_path(string)
+    if not p.exists():
+        raise argparse.ArgumentTypeError('Provided path does not exist, please give a valid path.')
+
+
 def __path_or_list(string):
-    p = __path(string)
+    p = __get_path(string)
     if p.exists():
         return p
     try:
         return list(map(int, string.split(',')))
     except ValueError:
         # If the string cannot be parsed as a list of integers, raise an error
-        raise argparse.ArgumentTypeError('Must be a path or a list of integers separated by commas')
+        raise argparse.ArgumentTypeError('Must be a path or a list of integers separated by commas.')
 
 
 def parse_cli():
