@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox as mb
 from tkinter import simpledialog
-import tools
+from . import tools
 import utils
 from utils import CONFIG_PATH, SIM_CONF, SCREEN_CONF
 from pathlib import Path
@@ -16,7 +16,7 @@ class MainFrame(ttk.Frame):
         super(MainFrame, self).__init__(container)
         self.listbox = None
         self.list_items = tk.Variable(value=[])
-        self.config_file = tk.StringVar(self, Path(CONFIG_PATH).resolve())
+        self.config_file = tk.StringVar(self, str(Path(CONFIG_PATH).resolve()))
         self.main_window()
 
     def main_window(self):
@@ -247,10 +247,10 @@ class App(tk.Tk):
         gui.pack(fill=tk.BOTH, expand=True)
 
 
-def run():
+def run_gui():
     app = App()
     app.mainloop()
 
 
 if __name__ == "__main__":
-    run()
+    run_gui()
