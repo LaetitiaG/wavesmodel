@@ -33,6 +33,8 @@ class Entry:
     simulation_params: simulation_params = simulation_params(*[0] * len(simulation_params._fields))
     screen_params: screen_params = screen_params(*[0] * len(screen_params._fields))
     mri_params: mri_paths = None
+    stim: str = 'None'
+    c_space: str = 'None'
 
     def set_simulation_params(self, simulation_params_list):
         self.simulation_params = simulation_params(*simulation_params_list)

@@ -10,7 +10,11 @@ col_cond = {'trav': 'crimson', 'stand': 'dodgerblue', 'trav_out': 'crimson', 'tr
             'fov_out': 'darkmagenta'}
 
 
-def project_wave(measured, forward, c_space, c_wave, stc_gen):
+def project_wave(entry, forward, stc_gen):
+    measured = entry.measured
+    c_wave = entry.stim
+    c_space = entry.c_space
+
     info = mne.io.read_info(measured)
     fwd = mne.read_forward_solution(forward)
     report = mne.Report(verbose=True)

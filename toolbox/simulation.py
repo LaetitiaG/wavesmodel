@@ -54,6 +54,8 @@ def load_retino(mri_paths):
         - eccen_label (tuple): A tuple containing the eccentricity values for the labeled voxels
             in the left and right hemispheres.
     """
+    # 1 path: data_MRI\preproc\freesurfer\2XXX72
+    # then in prfs/ find the 6 files
     if any(path is None for path in mri_paths):
         raise ValueError('Missing input data')
     retino_labels = safe_tupple_load(mri_paths.varea)
@@ -250,23 +252,26 @@ def fill_stc(stc_gen, c_space, inds_label, angle_label, eccen_label, wave_label)
         return tmp
 
 
-def generate_simulation(sensorsFile, mri_paths, forward_model, stim, mri_path):
-    # Magic numbers -- must be parameters later
-    screen_config = utils.screen_params(1920, 1080, 78, 44.2)
-    params = utils.simulation_params(5, 0.05, 10e-9, np.pi / 2)
-    c_space = 'full' #, quad, fov
+def generate_simulation(entry, mri_paths, forward_model, mri_path):
+    sensorsFile = entry.measured
+
+    simulation_params = entry.simulation_params
+    screen_config = entry.screen_params
+    stim = entry.stim
+    c_space = entry.c_space
 
     info = mne.io.read_info(sensorsFile)
     # Time Parameters for the source signal
     tstep = 1 / info['sfreq']
     times = np.arange(2 / tstep + 1) * tstep
 
+    # à revoir
     labels = load_retino(mri_paths)
     inds_label, angle_label, eccen_label = labels
 
     # Create the visual stimulus presented on the screen, which should induced cortical waves
     eccen_screen, e_cort = create_screen_grid(screen_config)
-    stim_inducer = create_stim_inducer(screen_config, times, params, e_cort, stim)
+    stim_inducer = create_stim_inducer(screen_config, times, simulation_params, e_cort, stim)
 
     # return wave_label depending on c_space (full, quad or fov)
     wave_label = create_wave_stims(c_space, times, stim_inducer, eccen_screen, angle_label, eccen_label)
@@ -275,6 +280,8 @@ def generate_simulation(sensorsFile, mri_paths, forward_model, stim, mri_path):
 
     # only wave_label (which depends on c_space)
     stc = fill_stc(stc_gen, c_space, *labels, wave_label)
+
+    return stc_gen
 
 
 if __name__ == '__main__':

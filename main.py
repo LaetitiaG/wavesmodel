@@ -2,6 +2,12 @@ import argparse
 import sys
 from pathlib import Path
 from GUI import input
+from toolbox.simulation import generate_simulation
+from toolbox.projection import project_wave
+
+
+stim_list = ['TRAV_OUT', 'STANDING', 'TRAV_IN']
+c_space_list = ['full', 'quad', 'fov']
 
 
 def __get_path(string):
@@ -38,7 +44,7 @@ def parse_cli(argv):
     parser.add_argument('--mri-path', required=False, type=__path,
                         help='the path where to find freesurfer output, and the forward model following the'
                              'architecture of the documentation')
-    parser.add_argument('--stim', required=False, default='TRAV_OUT', choices=['TRAV_OUT', 'STANDING', 'TRAV_IN'],
+    parser.add_argument('--stim', required=False, default='TRAV_OUT', choices=stim_list,
                         help='a string corresponding to the type of simulation')
     parser.add_argument('--sim-config', required=False, type=__path_or_list,
                         help='the path of the simulation config file to be used to load simulation parameters, '
@@ -58,6 +64,13 @@ def parse_cli(argv):
         "screen_config_path": args.screen_config,
         "gui": args.gui
     }
+
+
+def run_pipeline(entry_list):
+    for entry in entry_list:
+        stc_gen = generate_simulation(entry)
+        fwd = None
+        project_wave(entry, fwd, stc_gen)
 
 
 def run(argv):
