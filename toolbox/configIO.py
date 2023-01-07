@@ -1,6 +1,6 @@
 import configparser
 from configparser import ConfigParser
-from utils import simulation_params, screen_params
+import utils
 import os.path as op
 from os import makedirs
 
@@ -34,6 +34,19 @@ def get_config_object(filepath):
 def load_config(filepath):
     if op.exists(filepath):
         return get_config_object(filepath)
+
+
+def read_entry_config(filepath):
+    entry_list = []
+    config_obj = get_config_object(filepath)
+    sim_obj = get_config_object(utils.SIM_CONF)
+    screen_obj = get_config_object(utils.SCREEN_CONF)
+    for section in config_obj.sections():
+        entry = utils.Entry()
+        entry.load_entry(config_obj[section], sim_obj, screen_obj)
+        entry_list.append(entry)
+    return entry_list
+
 
 
 # params = simulation_params(5, 0.05, 10e-9, 2)

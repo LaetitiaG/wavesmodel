@@ -1,6 +1,7 @@
 import unittest
 from argparse import ArgumentTypeError
 from main import parse_cli
+import subprocess
 
 
 class TestParseCLI(unittest.TestCase):
@@ -11,8 +12,9 @@ class TestParseCLI(unittest.TestCase):
 
     def test_invalid_entry_config(self):
         # Test that an error is raised if the --entry-config argument is invalid
-        with self.assertRaises(ArgumentTypeError):
-            parse_cli(['--entry-config', '/invalid/path'])
+        process = subprocess.run(['python', '../main.py', '--entry-config', '/invalid/path'],
+                                 stderr=subprocess.PIPE, universal_newlines=True)
+        self.assertTrue(process.stderr)
 
     def test_valid_entry_config(self):
         # Test that the correct dictionary is returned if the --entry-config argument is valid

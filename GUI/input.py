@@ -74,12 +74,7 @@ class MainFrame(ttk.Frame):
     def load_config_file(self):
         filepath = tools.select_file_window(self, self.config_file)
         self.config_file.set(filepath)
-        config_obj = configIO.get_config_object(filepath)
-        sim_obj = configIO.get_config_object(SIM_CONF)
-        screen_obj = configIO.get_config_object(SCREEN_CONF)
-        for section in config_obj.sections():
-            entry = utils.Entry()
-            entry.load_entry(config_obj[section], sim_obj, screen_obj)
+        for entry in configIO.read_entry_config(filepath):
             self.listbox.insert(tk.END, entry)
             # except KeyError:
             #     mb.showerror('Error', 'You must select a valid Entry configuration file')
@@ -221,8 +216,8 @@ class EntryWindow(tk.Toplevel):
         self.saveButton.pack(side=tk.BOTTOM)
 
     def save_entry(self):
-        self.entry.simulation_config_name, self.entry.simulation_params = self.simulation_frame.get_config()
-        self.entry.screen_config_name, self.entry.screen_params = self.screen_frame.get_config()
+        self.entry.simulation_config_section, self.entry.simulation_params = self.simulation_frame.get_config()
+        self.entry.screen_config_section, self.entry.screen_params = self.screen_frame.get_config()
         self.entry.measured = Path(self.measuredStringVar.get())
         self.entry.retino_map = Path(self.retinoStringVar.get())
         self.destroy()
