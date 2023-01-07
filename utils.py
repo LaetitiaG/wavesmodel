@@ -2,7 +2,7 @@ from collections import namedtuple  # available in Python 2.6+
 from dataclasses import dataclass
 from pathlib import Path
 
-CONFIG_PATH = Path('./config')
+CONFIG_PATH = Path('../config')
 SIM_CONF = CONFIG_PATH / 'simulation.ini'
 SCREEN_CONF = CONFIG_PATH / 'screen.ini'
 
@@ -28,8 +28,8 @@ class Entry:
     """Data class corresponding to the entry structure"""
     measured: Path = Path('/')
     retino_map: Path = Path('/')
-    simulation_config_name: str = 'None'
-    screen_config_name: str = 'None'
+    simulation_config_section: str = 'None'
+    screen_config_section: str = 'None'
     simulation_params: simulation_params = simulation_params(*[0] * len(simulation_params._fields))
     screen_params: screen_params = screen_params(*[0] * len(screen_params._fields))
     mri_params: mri_paths = None
@@ -46,30 +46,29 @@ class Entry:
     def create_dictionary(self):
         entry_dict = {'measured': str(self.measured),
                       'retino_map': str(self.retino_map),
-                      'simulation_config_name': self.simulation_config_name,
-                      'screen_config_name': self.screen_config_name}
+                      'simulation_config_name': self.simulation_config_section,
+                      'screen_config_name': self.screen_config_section}
         entry_dict.update(self.simulation_params._asdict())
         entry_dict.update(self.screen_params._asdict())
         return entry_dict
 
-    def __load_param_from_config(self, dic, config_file, section, param_class):
-        if config_file.has_section(section):
-            return param_class(*config_file[section].values())
+    def __load_param_from_config(self, dic, config_obj, section, param_class):
+        if config_obj and config_obj.has_section(section):
+            return param_class(*config_obj[section].values())
         else:
             params = []
-            for field in simulation_params._fields:
+            for field in param_class._fields:
                 params.append(dic[field])
-            return simulation_params(*params)
+            return param_class(*params)
 
-    def load_entry(self, dic, sim_config_file=None, screen_config_file=None):
+    def load_entry(self, dic, sim_config_obj=None, screen_config_obj=None):
         self.measured = dic['measured']
         self.retino_map = dic['retino_map']
-        self.simulation_config_name = dic['simulation_config_name']
-        self.screen_config_name = dic['screen_config_name']
-        self.simulation_params = self.__load_param_from_config(dic, sim_config_file,
-                                                               self.simulation_config_name,
+        self.simulation_config_section = dic['simulation_config_section']
+        self.screen_config_section = dic['screen_config_section']
+        self.simulation_params = self.__load_param_from_config(dic, sim_config_obj,
+                                                               self.simulation_config_section,
                                                                self.simulation_params.__class__)
-        self.screen_params = self.__load_param_from_config(dic, screen_config_file,
-                                                               self.screen_config_name,
-                                                               self.screen_params.__class__)
-
+        self.screen_params = self.__load_param_from_config(dic, screen_config_obj,
+                                                           self.screen_config_section,
+                                                           self.screen_params.__class__)
