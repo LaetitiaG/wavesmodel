@@ -47,8 +47,6 @@ def read_entry_config(filepath):
         entry_list.append(entry)
     return entry_list
 
-
-
 # params = simulation_params(5, 0.05, 10e-9, 2)
 # screen_params = screen_params(1920, 1080, 78, 44.2)
 # conf = Config(params, screen_params)

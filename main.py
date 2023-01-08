@@ -1,6 +1,8 @@
 import argparse
 import sys
 from pathlib import Path
+
+import toolbox.configIO
 from GUI import input
 from toolbox.simulation import generate_simulation
 from toolbox.projection import project_wave
@@ -79,8 +81,11 @@ def run(argv):
     args = parse_cli(argv)
     if args.get('gui'):
         return input.run_gui()
-    if args.get('entry_config_path') is None:
+    entry_file = args.get('entry_config_path')
+    if entry_file is None:
         raise ValueError('You must provide an entry file')
+    entry_list = toolbox.configIO.read_entry_config(entry_file)
+    run_pipeline(entry_list)
     print(args)
 
 
