@@ -21,6 +21,7 @@ def __path(string):
     p = __get_path(string)
     if not p.exists():
         raise argparse.ArgumentTypeError('Provided path does not exist, please give a valid path.')
+    return p
 
 
 def __path_or_list(string):
@@ -36,8 +37,9 @@ def __path_or_list(string):
 
 def parse_cli(argv):
     parser = argparse.ArgumentParser()
-    parser.add_argument('--gui', action='store_true', help='run the GUI mode of the toolbox')
-    parser.add_argument('--entry-config', required=False, type=__path,
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--gui', action='store_true', help='run the GUI mode of the toolbox')
+    group.add_argument('--entry-config', type=__path,
                         help='the path of an entry config file containing entries with all values')
     parser.add_argument('--sensor-file', required=False, type=__path,
                         help='the path of the measured data file')
@@ -74,12 +76,11 @@ def run_pipeline(entry_list):
 
 
 def run(argv):
-    print(argv)
     args = parse_cli(argv)
     if args.get('gui'):
         return input.run_gui()
-    # if args.get('entry_config_path') is None:
-    #     raise argparse.ArgumentTypeError('You must provide an entry file')
+    if args.get('entry_config_path') is None:
+        raise ValueError('You must provide an entry file')
     print(args)
 
 

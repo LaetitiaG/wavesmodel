@@ -224,6 +224,7 @@ def create_stc(forward_model, times, tstep, mri_path):
 def fill_stc(stc_gen, c_space, inds_label, angle_label, eccen_label, wave_label):
     stc_angle = stc_gen.copy()  # only for left hemisphere
     stc_eccen = stc_gen.copy()
+    tmp = None
 
     if c_space == 'full':
         tmp = stc_gen.copy()
@@ -240,7 +241,6 @@ def fill_stc(stc_gen, c_space, inds_label, angle_label, eccen_label, wave_label)
                 tmp.rh_data[i_stc] = wave_label[RIGHT_HEMI][inds_label[1] == i]
                 stc_eccen.rh_data[i_stc] = eccen_label[RIGHT_HEMI][inds_label[1] == i]
                 stc_angle.rh_data[i_stc] = angle_label[RIGHT_HEMI][inds_label[1] == i]
-        return tmp
 
     elif c_space == 'quad':
         tmp = stc_gen.copy()
@@ -249,7 +249,7 @@ def fill_stc(stc_gen, c_space, inds_label, angle_label, eccen_label, wave_label)
                 i_stc = np.where(i == stc_gen.lh_vertno)[0][0]
                 tmp.lh_data[i_stc] = wave_label[inds_label[0] == i]
 
-        return tmp
+    return tmp
 
 
 def generate_simulation(entry, mri_paths, forward_model, mri_path):
