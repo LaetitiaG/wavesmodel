@@ -281,7 +281,7 @@ def generate_simulation(entry, mri_paths, forward_model, mri_path):
     # only wave_label (which depends on c_space)
     stc = fill_stc(stc_gen, c_space, *labels, wave_label)
 
-    return stc_gen
+    return stc
 
 
 if __name__ == '__main__':

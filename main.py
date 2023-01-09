@@ -43,36 +43,36 @@ def parse_cli(argv):
     group.add_argument('--gui', action='store_true', help='run the GUI mode of the toolbox')
     group.add_argument('--entry-config', type=__path,
                         help='the path of an entry config file containing entries with all values')
-    parser.add_argument('--sensor-file', required=False, type=__path,
-                        help='the path of the measured data file')
-    parser.add_argument('--mri-path', required=False, type=__path,
-                        help='the path where to find freesurfer output, and the forward model following the'
-                             'architecture of the documentation')
-    parser.add_argument('--stim', required=False, default='TRAV_OUT', choices=stim_list,
-                        help='a string corresponding to the type of simulation')
     parser.add_argument('--sim-config', required=False, type=__path_or_list,
                         help='the path of the simulation config file to be used to load simulation parameters, '
                              'or a list of integers separated by commas')
     parser.add_argument('--screen-config', required=False, type=__path_or_list,
                         help='the path of the screen config file to be used to load screen parameters, or a list of '
                              'integers separated by commas')
+    # parser.add_argument('--sensor-file', required=False, type=__path,
+    #                     help='the path of the measured data file')
+    # parser.add_argument('--mri-path', required=False, type=__path,
+    #                     help='the path where to find freesurfer output, and the forward model following the'
+    #                          'architecture of the documentation')
+    # parser.add_argument('--stim', required=False, default='TRAV_OUT', choices=stim_list,
+    #                     help='a string corresponding to the type of simulation')
 
     args = parser.parse_args(argv)
 
     return {
+        "gui": args.gui,
         "entry_config_path": args.entry_config,
-        "sensor_file_path": args.sensor_file,
-        "mri_path": args.mri_path,
-        "stim": args.stim,
         "sim_config_path": args.sim_config,
         "screen_config_path": args.screen_config,
-        "gui": args.gui
+        # "sensor_file_path": args.sensor_file,
+        # "mri_path": args.mri_path,
+        # "stim": args.stim
     }
 
 
 def run_pipeline(entry_list):
     for entry in entry_list:
-        stc_gen = generate_simulation(entry)
+        stc = generate_simulation(entry)
         fwd = None
         project_wave(entry, fwd, stc_gen)
 
