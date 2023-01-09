@@ -260,9 +260,10 @@ def fill_stc(stc_gen, c_space, inds_label, angle_label, eccen_label, wave_label)
     return tmp
 
 
-def generate_simulation(entry, forward_model, mri_path):
+def generate_simulation(entry):
     sensorsFile = entry.measured
-
+    mri_path = entry.freesurfer
+    forward_model = entry.fwd_model
     simulation_params = entry.simulation_params
     screen_config = entry.screen_params
     stim = entry.stim
