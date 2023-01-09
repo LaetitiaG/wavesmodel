@@ -73,8 +73,7 @@ def parse_cli(argv):
 def run_pipeline(entry_list):
     for entry in entry_list:
         stc = generate_simulation(entry)
-        fwd = None
-        project_wave(entry, fwd, stc)
+        project_wave(entry, stc)
 
 
 def run(argv):

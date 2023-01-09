@@ -25,16 +25,18 @@ screen_params = namedtuple("screen_params",
 
 @dataclass
 class Entry:
-    """Data class corresponding to the entry structure"""
+    """Data class corresponding to the entry structure
+    """
     measured: Path = Path('/')
     freesurfer: Path = Path('/')
     fwd_model: Path = Path('/')
+    stim: str = 'None'
+    c_space: str = 'None'
     simulation_config_section: str = 'None'
     screen_config_section: str = 'None'
     simulation_params: simulation_params = simulation_params(*[0] * len(simulation_params._fields))
     screen_params: screen_params = screen_params(*[0] * len(screen_params._fields))
-    stim: str = 'None'
-    c_space: str = 'None'
+
 
     def set_simulation_params(self, simulation_params_list):
         self.simulation_params = simulation_params(*simulation_params_list)
@@ -44,7 +46,10 @@ class Entry:
 
     def create_dictionary(self):
         entry_dict = {'measured': str(self.measured),
-                      'retino_map': str(self.freesurfer),
+                      'freesurfer': str(self.freesurfer),
+                      'fwd_model': str(self.fwd_model),
+                      'stim': self.stim,
+                      'c_space': self.c_space,
                       'simulation_config_name': self.simulation_config_section,
                       'screen_config_name': self.screen_config_section}
         entry_dict.update(self.simulation_params._asdict())
@@ -63,6 +68,9 @@ class Entry:
     def load_entry(self, dic, sim_config_obj=None, screen_config_obj=None):
         self.measured = dic['measured']
         self.freesurfer = dic['freesurfer']
+        self.fwd_model = dic['fwd_model']
+        self.stim = dic['stim']
+        self.c_space = dic['c_space']
         self.simulation_config_section = dic['simulation_config_section']
         self.screen_config_section = dic['screen_config_section']
         self.simulation_params = self.__load_param_from_config(dic, sim_config_obj,

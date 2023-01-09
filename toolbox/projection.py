@@ -12,6 +12,7 @@ col_cond = {'trav': 'crimson', 'stand': 'dodgerblue', 'trav_out': 'crimson', 'tr
 
 def project_wave(entry, forward, stc_gen):
     measured = entry.measured
+    forward = entry.fwd_model
     c_wave = entry.stim
     c_space = entry.c_space
 
