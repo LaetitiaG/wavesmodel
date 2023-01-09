@@ -180,7 +180,7 @@ class EntryWindow(tk.Toplevel):
         self.new = entry is None
         self.entry = utils.Entry() if self.new else entry
         self.measuredStringVar = tk.StringVar(self, str(self.entry.measured))
-        self.retinoStringVar = tk.StringVar(self, str(self.entry.freesurfer))
+        self.freesurferStringVar = tk.StringVar(self, str(self.entry.freesurfer))
         self.simulation_frame = None
         self.screen_frame = None
 
@@ -205,7 +205,7 @@ class EntryWindow(tk.Toplevel):
         self.screen_frame = ConfigFrame(notebk, self.entry.screen_params, SCREEN_CONF)
 
         mri_frame = ttk.Frame(notebk)
-        tools.add_file_input(mri_frame, 'Retinotopic map MRI', self.retinoStringVar, tools.select_file_window)
+        tools.add_file_input(mri_frame, 'Freesurfer folder', self.freesurferStringVar, tools.select_file_window)
         mri_frame.pack(fill=tk.BOTH)
 
         notebk.add(f, text='First version')
@@ -219,7 +219,7 @@ class EntryWindow(tk.Toplevel):
         self.entry.simulation_config_section, self.entry.simulation_params = self.simulation_frame.get_config()
         self.entry.screen_config_section, self.entry.screen_params = self.screen_frame.get_config()
         self.entry.measured = Path(self.measuredStringVar.get())
-        self.entry.freesurfer = Path(self.retinoStringVar.get())
+        self.entry.freesurfer = Path(self.freesurferStringVar.get())
         self.destroy()
 
     def get_entry(self):
