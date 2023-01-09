@@ -12,31 +12,11 @@ class TestLoadRetino(unittest.TestCase):
     Test function for simulation.load_retino
     Needs server to be mounted on Z: to work
     """
-    def create_test_mri_paths_valid(self):
-        subj_dir = Path('Z:/DugueLab_Research/Current_Projects/LGr_GM_JW_DH_LD_WavesModel'
-                        '/Experiments/Data/data_MRI/preproc/freesurfer/2XXX72/prfs')
-        paths = mri_paths((Path(subj_dir / 'lh.inferred_varea.mgz'), Path(subj_dir / 'rh.inferred_varea.mgz')),
-                          (Path(subj_dir / 'lh.inferred_angle.mgz'), Path(subj_dir / 'rh.inferred_angle.mgz')),
-                          (Path(subj_dir / 'lh.inferred_eccen.mgz'), Path(subj_dir / 'rh.inferred_eccen.mgz')))
-        return paths
-
-    def create_test_mri_paths_missing_data(self):
-        subj_dir = Path('./')
-        paths = mri_paths((Path(subj_dir / 'lh.inferred_varea.mgz'), Path(subj_dir / 'rh.inferred_varea.mgz')),
-                          (Path(subj_dir / 'lh.inferred_angle.mgz'), Path(subj_dir / 'rh.inferred_angle.mgz')),
-                          (Path(subj_dir / 'lh.inferred_eccen.mgz'), Path(subj_dir / 'rh.inferred_eccen.mgz')))
-        return paths
-
-    def create_test_mri_paths_invalid_data(self):
-        subj_dir = Path('./config')
-        paths = mri_paths((Path(subj_dir / 'entry.ini'), Path(subj_dir / 'entry.ini')),
-                          (Path(subj_dir / 'entry.ini'), Path(subj_dir / 'entry.ini')),
-                          (Path(subj_dir / 'entry.ini'), Path(subj_dir / 'entry.ini')))
-        return paths
 
     def test_return_len(self):
-        mri_paths = self.create_test_mri_paths_valid()
-        ret = load_retino(mri_paths)
+        mri_path = Path('Z:/DugueLab_Research/Current_Projects/LGr_GM_JW_DH_LD_WavesModel'
+                        '/Experiments/Data/data_MRI/preproc/freesurfer/2XXX72/')
+        ret = load_retino(mri_path)
         self.assertEqual(len(ret), 3)
         varea, angle, eccen = ret
         self.assertEqual(len(varea), 2)
@@ -45,30 +25,31 @@ class TestLoadRetino(unittest.TestCase):
 
     def test_missing_input(self):
         # Test the case where the input data is missing
-        mri_paths = self.create_test_mri_paths_missing_data()
+        mri_path = Path('./')
 
         # Verify that the function raises an error when the input data is missing
         with self.assertRaises(ValueError):
-            result = load_retino(mri_paths)
+            result = load_retino(mri_path)
 
     def test_invalid_input(self):
         # Test the case where the input data is invalid
-        mri_paths = self.create_test_mri_paths_invalid_data()
+        mri_path = Path('./config')
 
         # Verify that the function raises an error when the input data is invalid
         with self.assertRaises(ValueError):
-            result = load_retino(mri_paths)
+            result = load_retino(mri_path)
 
 
 class TestCreateScreenGrid(unittest.TestCase):
     """
     Test function for simulation.create_screen_grid
     """
+
     def create_test_screen_config_valid(self):
-        screen_config = screen_params(20, 10, 50, 10) # 1 pix = 1cm
+        screen_config = screen_params(20, 10, 50, 10)  # 1 pix = 1cm
         # define the expected output for the upper input
-        diag = np.sqrt(5**2 + 10**2) # diag valu in cm
-        expected_eccen_screen_max = np.degrees(np.arctan(diag/50))
+        diag = np.sqrt(5 ** 2 + 10 ** 2)  # diag valu in cm
+        expected_eccen_screen_max = np.degrees(np.arctan(diag / 50))
         expected_e_cort = 0
         expected_output = (expected_eccen_screen_max, expected_e_cort)
         return screen_config, expected_output
@@ -76,7 +57,7 @@ class TestCreateScreenGrid(unittest.TestCase):
     def test_create_screen_grid_output(self):
         screen_config, expected_output = self.create_test_screen_config_valid()
         # Call the create_screen_grid function with the test data
-        eccen,e_cort = create_screen_grid(screen_config)
+        eccen, e_cort = create_screen_grid(screen_config)
 
         # Verify that the output is as expected
         self.assertEqual(np.max(eccen), expected_output[0])

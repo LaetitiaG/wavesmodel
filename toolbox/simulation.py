@@ -17,7 +17,7 @@ TRAV_IN = "trav_in"
 # select in which label the simulation is done 
 # 1	V1 / 2	V2 / 3	V3 / 4	hV4 / 5	VO1 / 6	VO2 / 7	LO1 / 8	LO2 / 9	TO1
 # 10	TO2 / 11	V3b / 12	V3a
-lab_ind = 1 
+lab_ind = 1
 
 
 def apply_tuple(t, f):
@@ -38,14 +38,12 @@ def safe_tupple_load(retino_tuple):
         raise ValueError('Invalid input data')
 
 
-def load_retino(mri_paths):
+def load_retino(mri_path):
     """
     Load retinotopy, visual phase and eccentricity for labels of both hemis
     Args:
-        mri_paths: A named tuple with the following fields:
-            - varea (tuple): A tuple containing the paths to the varea MRIs for the left and right hemispheres.
-            - angle (tuple): A tuple containing the paths to the angle MRIs for the left and right hemispheres.
-            - eccen (tuple): A tuple containing the paths to the eccen MRIs for the left and right hemispheres.
+        mri_path: The path to the freesurfer output folder. The architecture of this folder should be the default
+                    as the function will look into 'pfrs' folder to find the datas to load.
 
     Returns: A tuple containing the following elements:
         - inds_label (tuple): A tuple containing the indices of the labeled voxels in the left and right hemispheres.
@@ -54,11 +52,17 @@ def load_retino(mri_paths):
         - eccen_label (tuple): A tuple containing the eccentricity values for the labeled voxels
             in the left and right hemispheres.
     """
-    # 1 path: data_MRI\preproc\freesurfer\2XXX72
-    # then in prfs/ find the 6 files
-    if any(path is None for path in mri_paths):
-        raise ValueError('Missing input data')
-    retino_labels = safe_tupple_load(mri_paths.varea)
+    prfs = mri_path / 'prfs'
+    if not prfs.exists():
+        raise ValueError('Invalid freesurfer folder architecture')
+
+    retino_paths = utils.mri_paths((prfs / 'lh.inferred_varea.mgz', prfs / 'rh.inferred_varea.mgz'),
+                                   (prfs / 'lh.inferred_angle.mgz', prfs / 'rh.inferred_angle.mgz'),
+                                   (prfs / 'lh.inferred_eccen.mgz', prfs / 'rh.inferred_eccen.mgz'))
+    if any(any(not path.exists() for path in tup) for tup in retino_paths):
+        raise ValueError('Input data is missing or has invalid name')
+
+    retino_labels = safe_tupple_load(retino_paths.varea)
     # Select V1 (according to the codes used in varea)
     msk_label = apply_tuple(retino_labels, lambda x: x.get_fdata() == lab_ind)
 
@@ -66,9 +70,9 @@ def load_retino(mri_paths):
 
     inds_label = apply_tuple(retino_labels,
                              lambda x: np.where(np.squeeze(x.get_fdata()) == lab_ind)[0])
-    angle = safe_tupple_load(mri_paths.angle)
+    angle = safe_tupple_load(retino_paths.angle)
     angle_label = mask(apply_tuple(angle, lambda x: x.get_fdata()))
-    eccen = safe_tupple_load(mri_paths.eccen)
+    eccen = safe_tupple_load(retino_paths.eccen)
     eccen_label = mask(apply_tuple(eccen, lambda x: x.get_fdata()))
     return inds_label, angle_label, eccen_label
 
@@ -110,11 +114,11 @@ def create_screen_grid(screen_config):
     height_screen_pix = screen_config.height
     height_screen_cm = screen_config.heightCM
     distance_from_screen = screen_config.distanceFrom
-    
+
     # Find pixel coordinates of the center
     half_x_screen_pix = int(width_screen_pix / 2)
     half_y_screen_pix = int(height_screen_pix / 2)
-    
+
     # Create grids in pixels then in cm from the center
     width_array = np.arange(-half_x_screen_pix, half_x_screen_pix, step=1, dtype=int)
     height_array = np.arange(-half_y_screen_pix, half_y_screen_pix, step=1, dtype=int)
@@ -123,8 +127,8 @@ def create_screen_grid(screen_config):
     eccen_screen_cm = np.sqrt((x * cm_per_pixel) ** 2 + (y * cm_per_pixel) ** 2)
 
     # Create grids in °VA
-    eccen_screen = np.degrees(np.arctan(eccen_screen_cm/distance_from_screen))
-    
+    eccen_screen = np.degrees(np.arctan(eccen_screen_cm / distance_from_screen))
+
     # Create screen grid corresponding to putative cortical distance
     e_cort = cort_eccen_mm(eccen_screen)  # in mm of cortex
 
@@ -156,17 +160,20 @@ def create_stim_inducer(screen_config, times, params, e_cort, stim):
     sin_inducer = np.zeros((len(times), screen_config.height, screen_config.width))
 
     if stim == TRAV_OUT:
-        def func(t): return params.amplitude * \
-                       np.sin(2 * np.pi * params.freq_spacial *
-                              e_cort - 2 * np.pi * params.freq_temp * t + params.phase_offset)
+        def func(t):
+            return params.amplitude * \
+                np.sin(2 * np.pi * params.freq_spacial *
+                       e_cort - 2 * np.pi * params.freq_temp * t + params.phase_offset)
     elif stim == STANDING:
-        def func(t): return params.amplitude * \
-                         np.sin(2 * np.pi * params.freq_spacial * e_cort + params.phase_offset) * \
-                         np.cos(2 * np.pi * params.freq_temp * t)
+        def func(t):
+            return params.amplitude * \
+                np.sin(2 * np.pi * params.freq_spacial * e_cort + params.phase_offset) * \
+                np.cos(2 * np.pi * params.freq_temp * t)
     elif stim == TRAV_IN:
-        def func(t): return params.amplitude * \
-                         np.sin(2 * np.pi * params.freq_spacial *
-                                e_cort + 2 * np.pi * params.freq_temp * t + params.phase_offset)
+        def func(t):
+            return params.amplitude * \
+                np.sin(2 * np.pi * params.freq_spacial *
+                       e_cort + 2 * np.pi * params.freq_temp * t + params.phase_offset)
     else:
         raise ValueError('Incorrect stimulation value')  # needs to be InputStimError
     # apply func on times
@@ -203,7 +210,7 @@ def create_wave_stims(c_space, times, sin_inducer, eccen_screen, angle_label, ec
         wave_fov[LEFT_HEMI][eccen_label[0] > 5, :] = 0
         wave_fov[RIGHT_HEMI][eccen_label[1] > 5, :] = 0
         return wave_fov
-    else: # handle wrong c_space
+    else:  # handle wrong c_space
         return wave_label
 
 
@@ -214,7 +221,8 @@ def create_stc(forward_model, times, tstep, mri_path):
 
     # Create empty stc
     # need to indicate the directory of the freesurfer files for given subject
-    labels = mne.read_labels_from_annot(mri_path.name, subjects_dir=mri_path.parent, parc='aparc.a2009s')  # aparc.DKTatlas
+    labels = mne.read_labels_from_annot(mri_path.name, subjects_dir=mri_path.parent,
+                                        parc='aparc.a2009s')  # aparc.DKTatlas
     n_labels = len(labels)
     signal = np.zeros((n_labels, len(times)))
     return mne.simulation.simulate_stc(src, labels, signal, times[0], tstep,
@@ -252,7 +260,7 @@ def fill_stc(stc_gen, c_space, inds_label, angle_label, eccen_label, wave_label)
     return tmp
 
 
-def generate_simulation(entry, mri_paths, forward_model, mri_path):
+def generate_simulation(entry, forward_model, mri_path):
     sensorsFile = entry.measured
 
     simulation_params = entry.simulation_params
@@ -266,7 +274,7 @@ def generate_simulation(entry, mri_paths, forward_model, mri_path):
     times = np.arange(2 / tstep + 1) * tstep
 
     # à revoir
-    labels = load_retino(mri_paths)
+    labels = load_retino(mri_path)
     inds_label, angle_label, eccen_label = labels
 
     # Create the visual stimulus presented on the screen, which should induced cortical waves

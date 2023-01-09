@@ -74,7 +74,7 @@ def run_pipeline(entry_list):
     for entry in entry_list:
         stc = generate_simulation(entry)
         fwd = None
-        project_wave(entry, fwd, stc_gen)
+        project_wave(entry, fwd, stc)
 
 
 def run(argv):
