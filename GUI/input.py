@@ -2,7 +2,10 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox as mb
 from tkinter import simpledialog
-from . import tools
+
+import GUI.tools
+import main
+from GUI import tools
 import utils
 from utils import CONFIG_PATH, SIM_CONF, SCREEN_CONF
 from pathlib import Path
@@ -120,13 +123,8 @@ class ConfigFrame(ttk.Frame):
 
     def add_text_inputs(self):
         for field in self.param._fields:
-            f = ttk.Frame(self)
-            lbl = tk.Label(f, text=field)
-            txt = ttk.Entry(f)
+            f, txt = tools.add_text_input(self, field)
             self.txtInput.append(txt)
-            lbl.pack(side=tk.LEFT)
-            txt.pack(side=tk.LEFT, fill=tk.X)
-            f.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
     def create(self):
         lbframe = ttk.Frame(self)
@@ -181,6 +179,9 @@ class EntryWindow(tk.Toplevel):
         self.entry = utils.Entry() if self.new else entry
         self.measuredStringVar = tk.StringVar(self, str(self.entry.measured))
         self.freesurferStringVar = tk.StringVar(self, str(self.entry.freesurfer))
+        self.forwardStringVar = tk.StringVar(self, str(self.entry.fwd_model))
+        self.stim_list_box = None
+        self.space_list_box = None
         self.simulation_frame = None
         self.screen_frame = None
 
@@ -196,30 +197,35 @@ class EntryWindow(tk.Toplevel):
         notebk = ttk.Notebook(self)
         notebk.pack(fill=tk.BOTH)
 
-        f = ttk.Frame(notebk)
-        f['padding'] = (5, 10)
-        f.pack(fill=tk.BOTH)
-        tools.add_file_input(f, 'Measured data', self.measuredStringVar, tools.select_file_window)
+        main_frame = ttk.Frame(notebk)
+        main_frame['padding'] = (5, 10)
+        main_frame.pack(fill=tk.BOTH)
+        tools.add_file_input(main_frame, 'Measured data', self.measuredStringVar, tools.select_file_window)
+        tools.add_file_input(main_frame, 'Freesurfer folder', self.freesurferStringVar, tools.select_file_window)
+        tools.add_file_input(main_frame, 'Forward model', self.forwardStringVar, tools.select_file_window)
+        self.stim_list_box, _ = tools.add_dropdown_input(main_frame, 'Stimulation', main.stim_list, self.entry.stim)
+        self.space_list_box, _ =\
+            tools.add_dropdown_input(main_frame, 'Spacial condition', main.c_space_list, self.entry.c_space)
+        for widget in main_frame.winfo_children():
+            widget.pack(side=tk.TOP)
 
         self.simulation_frame = ConfigFrame(notebk, self.entry.simulation_params, SIM_CONF)
         self.screen_frame = ConfigFrame(notebk, self.entry.screen_params, SCREEN_CONF)
 
-        mri_frame = ttk.Frame(notebk)
-        tools.add_file_input(mri_frame, 'Freesurfer folder', self.freesurferStringVar, tools.select_file_window)
-        mri_frame.pack(fill=tk.BOTH)
-
-        notebk.add(f, text='First version')
+        notebk.add(main_frame, text='First version')
         notebk.add(self.simulation_frame, text='Simulation')
         notebk.add(self.screen_frame, text='Screen')
-        notebk.add(mri_frame, text='MRI')
 
         self.saveButton.pack(side=tk.BOTTOM)
 
     def save_entry(self):
-        self.entry.simulation_config_section, self.entry.simulation_params = self.simulation_frame.get_config()
-        self.entry.screen_config_section, self.entry.screen_params = self.screen_frame.get_config()
         self.entry.measured = Path(self.measuredStringVar.get())
         self.entry.freesurfer = Path(self.freesurferStringVar.get())
+        self.entry.fwd_model = Path(self.forwardStringVar.get())
+        self.entry.stim = self.stim_list_box.get()
+        self.entry.c_space = self.space_list_box.get()
+        self.entry.simulation_config_section, self.entry.simulation_params = self.simulation_frame.get_config()
+        self.entry.screen_config_section, self.entry.screen_params = self.screen_frame.get_config()
         self.destroy()
 
     def get_entry(self):

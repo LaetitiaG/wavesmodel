@@ -41,8 +41,31 @@ def show_file_path(mainFrame, txt, var):
 def add_file_input(mainFrame, txt, var, cmd):
     f = show_file_path(mainFrame, txt, var)
     load_button = tk.Button(f, text='Browse', command=lambda: var.set(cmd(mainFrame, txt)))
-    load_button.pack(side=tk.LEFT)
+    # load_button.pack(side=tk.LEFT)
     return f
+
+
+def add_text_input(mainframe, text):
+    f = ttk.Frame(mainframe)
+    lbl = tk.Label(f, text=text)
+    txt = ttk.Entry(f)
+    lbl.pack(side=tk.LEFT)
+    txt.pack(side=tk.LEFT, fill=tk.X)
+    f.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    return f, txt
+
+
+def add_dropdown_input(mainframe, text, lst, default=None):
+    f = ttk.Frame(mainframe)
+    f['padding'] = 5
+    lbl = tk.Label(f, text=text)
+    combo = ttk.Combobox(f, values=lst)
+    if default not in lst:
+        default = lst[0]
+    combo.set(default)
+    lbl.pack(side=tk.LEFT)
+    combo.pack(side=tk.LEFT, fill=tk.X)
+    return combo, f
 
 
 class Listbox(tk.Listbox):
