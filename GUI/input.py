@@ -85,6 +85,7 @@ class MainFrame(ttk.Frame):
 
     def save_config(self):
         file = tools.save_file_window(self, self.config_file)
+        self.config_file.set(file)
         config_obj = ConfigParser()
         section_idx = 1
         entry_list = self.listbox.get_value_list()
@@ -200,9 +201,9 @@ class EntryWindow(tk.Toplevel):
         main_frame = ttk.Frame(notebk)
         main_frame['padding'] = (5, 10)
         main_frame.pack(fill=tk.BOTH)
-        tools.add_file_input(main_frame, 'Measured data', self.measuredStringVar, tools.select_file_window)
-        tools.add_file_input(main_frame, 'Freesurfer folder', self.freesurferStringVar, tools.select_file_window)
-        tools.add_file_input(main_frame, 'Forward model', self.forwardStringVar, tools.select_file_window)
+        tools.add_file_input(main_frame, 'Measured data', self.measuredStringVar)
+        tools.add_file_input(main_frame, 'Freesurfer folder', self.freesurferStringVar)
+        tools.add_file_input(main_frame, 'Forward model', self.forwardStringVar)
         self.stim_list_box, _ = tools.add_dropdown_input(main_frame, 'Stimulation', main.stim_list, self.entry.stim)
         self.space_list_box, _ =\
             tools.add_dropdown_input(main_frame, 'Spacial condition', main.c_space_list, self.entry.c_space)
@@ -212,7 +213,7 @@ class EntryWindow(tk.Toplevel):
         self.simulation_frame = ConfigFrame(notebk, self.entry.simulation_params, SIM_CONF)
         self.screen_frame = ConfigFrame(notebk, self.entry.screen_params, SCREEN_CONF)
 
-        notebk.add(main_frame, text='First version')
+        notebk.add(main_frame, text='Params')
         notebk.add(self.simulation_frame, text='Simulation')
         notebk.add(self.screen_frame, text='Screen')
 

@@ -50,8 +50,8 @@ class Entry:
                       'fwd_model': str(self.fwd_model),
                       'stim': self.stim,
                       'c_space': self.c_space,
-                      'simulation_config_name': self.simulation_config_section,
-                      'screen_config_name': self.screen_config_section}
+                      'simulation_config_section': self.simulation_config_section,
+                      'screen_config_section': self.screen_config_section}
         entry_dict.update(self.simulation_params._asdict())
         entry_dict.update(self.screen_params._asdict())
         return entry_dict

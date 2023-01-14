@@ -38,10 +38,11 @@ def show_file_path(mainFrame, txt, var):
     return f
 
 
-def add_file_input(mainFrame, txt, var, cmd):
+def add_file_input(mainFrame, txt, var):
     f = show_file_path(mainFrame, txt, var)
-    load_button = tk.Button(f, text='Browse', command=lambda: var.set(cmd(mainFrame, txt)))
-    # load_button.pack(side=tk.LEFT)
+    def cmd(): var.set(select_file_window(mainFrame, txt))
+    load_button = tk.Button(f, text='Browse', command=cmd)
+    load_button.pack(side=tk.LEFT)
     return f
 
 
