@@ -70,6 +70,11 @@ def add_dropdown_input(mainframe, text, lst, default=None):
 
 
 class Listbox(tk.Listbox):
+    """ Custom listbox class inherited from tk.Listbox
+    The only change is that the list associated with the listbox (value)
+    can handle any type of elements (as regular list) instead of converting
+    into string elements (which causes problems then to access class attributes)
+    """
     def __init__(self, master=None, cnf={}, **kw):
         super(Listbox, self).__init__(master, cnf, **kw)
         self.value = []

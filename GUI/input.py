@@ -18,7 +18,6 @@ class MainFrame(ttk.Frame):
     def __init__(self, container):
         super(MainFrame, self).__init__(container)
         self.listbox = None
-        self.list_items = tk.Variable(value=[])
         self.config_file = tk.StringVar(self, str(Path(CONFIG_PATH).resolve()))
         self.main_window()
 
@@ -33,7 +32,7 @@ class MainFrame(ttk.Frame):
         list_frame = ttk.Frame(self)
         list_frame['padding'] = (5, 10)
         list_frame.pack(expand=True, fill=tk.BOTH)
-        self.listbox = tools.Listbox(list_frame, listvariable=self.list_items, height=10)
+        self.listbox = tools.Listbox(list_frame, listvariable=tk.Variable(value=[]), height=10)
         self.listbox.bind('<Double-1>', self.edit_entry)
         self.listbox.pack(expand=True, side=tk.LEFT, fill=tk.BOTH)
 
