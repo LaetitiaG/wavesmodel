@@ -107,7 +107,7 @@ class MainFrame(ttk.Frame):
         save_btn.pack(side=tk.LEFT)
 
     def run_simulation(self):
-        return
+        main.run_pipeline(self.listbox.get_value_list())
 
 
 class ConfigFrame(ttk.Frame):
