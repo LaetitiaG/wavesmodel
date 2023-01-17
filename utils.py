@@ -1,6 +1,7 @@
 from collections import namedtuple  # available in Python 2.6+
 from dataclasses import dataclass
 from pathlib import Path
+import numpy as np
 
 CONFIG_PATH = Path('config')
 SIM_CONF = CONFIG_PATH / 'simulation.ini'
@@ -57,18 +58,19 @@ class Entry:
         return entry_dict
 
     def __load_param_from_config(self, dic, config_obj, section, param_class):
+        pi = np.pi
         if config_obj and config_obj.has_section(section):
-            return param_class(*config_obj[section].values())
+            return param_class(*map(eval, config_obj[section].values()))
         else:
             params = []
             for field in param_class._fields:
-                params.append(dic[field])
+                params.append(eval(dic[field]))
             return param_class(*params)
 
     def load_entry(self, dic, sim_config_obj=None, screen_config_obj=None):
-        self.measured = dic['measured']
-        self.freesurfer = dic['freesurfer']
-        self.fwd_model = dic['fwd_model']
+        self.measured = Path(dic['measured'])
+        self.freesurfer = Path(dic['freesurfer'])
+        self.fwd_model = Path(dic['fwd_model'])
         self.stim = dic['stim']
         self.c_space = dic['c_space']
         self.simulation_config_section = dic['simulation_config_section']

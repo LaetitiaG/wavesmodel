@@ -80,7 +80,6 @@ def run_pipeline(entry_list):
         print(compare)
 
 
-
 def run(argv):
     args = parse_cli(argv)
     if args.get('gui'):

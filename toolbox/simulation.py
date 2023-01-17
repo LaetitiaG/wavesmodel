@@ -10,9 +10,9 @@ from collections import namedtuple
 LEFT_HEMI = 0
 RIGHT_HEMI = 1
 
-TRAV_OUT = "trav_out"
-STANDING = "standing"
-TRAV_IN = "trav_in"
+TRAV_OUT = "TRAV_OUT"
+STANDING = "STANDING"
+TRAV_IN = "TRAV_IN"
 
 # select in which label the simulation is done 
 # 1	V1 / 2	V2 / 3	V3 / 4	hV4 / 5	VO1 / 6	VO2 / 7	LO1 / 8	LO2 / 9	TO1
@@ -157,8 +157,6 @@ def create_stim_inducer(screen_config, times, params, e_cort, stim):
     Returns:
         An ndarray containing the screen luminance values for each time point and pixel.
     """
-    sin_inducer = np.zeros((len(times), screen_config.height, screen_config.width))
-
     if stim == TRAV_OUT:
         def func(t):
             return params.amplitude * \
@@ -176,6 +174,8 @@ def create_stim_inducer(screen_config, times, params, e_cort, stim):
                        e_cort + 2 * np.pi * params.freq_temp * t + params.phase_offset)
     else:
         raise ValueError('Incorrect stimulation value')  # needs to be InputStimError
+
+    sin_inducer = np.zeros((len(times), screen_config.height, screen_config.width))
     # apply func on times
     for idx, time in enumerate(times):
         sin_inducer[idx] = func(time)
@@ -188,9 +188,10 @@ def create_wave_stims(c_space, times, sin_inducer, eccen_screen, angle_label, ec
     And return wave_label depending on c_space (full, quad, fov)
     Used with apply_tuple, avoiding to have to handle tuple inside
     """
-    wave_label = np.zeros(len(eccen_label), len(times))
+    wave_label = np.zeros((len(eccen_label), len(times)))
+    max_eccen = np.max(eccen_screen)
     for ind_l, l in enumerate(eccen_label):
-        if l > np.max(eccen_screen):
+        if np.max(l) > max_eccen:
             continue
         imin = np.argmin(np.abs(eccen_screen - eccen_label[ind_l]))
         ind_stim = np.unravel_index(imin, np.shape(eccen_screen))
