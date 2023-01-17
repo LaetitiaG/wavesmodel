@@ -6,6 +6,7 @@ import toolbox.configIO
 from GUI import input
 from toolbox.simulation import generate_simulation
 from toolbox.projection import project_wave
+from toolbox.comparison import compare_meas_simu
 
 
 stim_list = ['TRAV_OUT', 'STANDING', 'TRAV_IN']
@@ -73,7 +74,11 @@ def parse_cli(argv):
 def run_pipeline(entry_list):
     for entry in entry_list:
         stc = generate_simulation(entry)
-        project_wave(entry, stc)
+        proj = project_wave(entry, stc)
+        compare = compare_meas_simu(entry, proj)
+        phases, ampls, times, info, zscores, R2_all, pval_all, matrices = compare
+        print(compare)
+
 
 
 def run(argv):

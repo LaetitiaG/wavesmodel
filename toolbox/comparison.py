@@ -1,16 +1,56 @@
 import numpy as np
+import mne
+import scipy.stats as scistats
+from math import sqrt, atan2, pi, floor, exp
 
 
-def compare_meas_simu(fname_meas, fname_simu):
+def circular_corr(phases1, phases2):
+    # from Topics in Circular Statistics (Jammalamadaka & Sengupta, 2001, World Scientific)
+    m1 = circular_mean(phases1)
+    m2 = circular_mean(phases2)
+
+    sin1 = np.sin(phases1 - m1)
+    sin2 = np.sin(phases2 - m2)
+    rho = np.sum(sin1 * sin2) / np.sqrt(np.sum(sin1 ** 2) * np.sum(sin2 ** 2))
+
+    # Statistical test
+    l20 = np.sum(sin1 ** 2)
+    l02 = np.sum(sin2 ** 2)
+    l22 = np.sum(sin1 ** 2 * sin2 ** 2)
+    zcorr = rho * np.sqrt(l20 * l02 / l22)
+    p_value = 2 * (1 - scistats.norm.cdf(abs(zcorr)))
+
+    return rho, zcorr, p_value
+
+
+def circular_mean(phases):
+    """
+    Compute the circular mean of a phase vector in radian
+
+    Parameters
+    ----------
+    phases : ARRAY
+        Phases vector.
+
+    Returns
+    -------
+    Circular mean in radian.
+
+    """
+    ang = np.mean(np.exp(1j*phases))
+    return atan2(ang.imag, ang.real)
+
+
+def compare_meas_simu(entry, ev_proj):
     '''
-    Compare the relationships between pairs of sensors in term of amplitude, phase
+    Compare the relationships between pairs of sensors in terms of amplitude, phase
     or complex values between measured and simulated signal.
 
     Parameters
     ----------
-    fname_meas : STRING
-        Path and file name for the measured data file to compare (should contain an evoked).
-    fname_simu : STRING
+    entry : class
+        Class for entry values
+    ev_proj : STRING
         Path and file name for the simulated data file to compare (should contain an evoked).
 
     Returns
@@ -36,6 +76,15 @@ def compare_meas_simu(fname_meas, fname_simu):
         Amplitude/phase/complexe matrices for each signal and each channel pair.
 
     '''
+    fstim = entry.simulation_params.freq_temp
+    # Initialize constants
+    # Parameters for Morlet analysis for the SSVEP extraction
+    freqs = np.arange(2., 50., 0.5)
+    n_cycles = freqs / 2.
+    ch_types = ['mag', 'grad', 'eeg']
+    choose_ch = [['mag', False], ['grad', False], [False, True]]
+    tmin_crop = 0.5
+
     # initiate outputs
     zscores = np.zeros((len(ch_types), 3))  # zscore of the correlation ch_type*amp/phase/cplx
     R2_all = np.zeros((len(ch_types), 3))
@@ -46,13 +95,12 @@ def compare_meas_simu(fname_meas, fname_simu):
                                  dtype='complex_')}  # complex connectivity matrices for each channel type
 
     # Read measured data evoked
-    evoked = mne.read_evokeds(fname_meas)[0]
+    evoked = mne.read_evokeds(entry.measured)[0]
     evoked.crop(tmin=0, tmax=2)
     Nt = len(evoked.times)
     sf = evoked.info['sfreq']
 
     # Read projections
-    ev_proj = mne.read_evokeds(fname_simu)[0]
     evokeds = [evoked, ev_proj]  # 'measured', 'simulated'
 
     # Extract phase and amplitude at each time point at 5Hz
@@ -109,7 +157,7 @@ def compare_meas_simu(fname_meas, fname_simu):
         msk_tri = np.triu(np.ones((len(inds), len(inds)), bool), k=1)  # zero the diagonal and all values below
         meas = cov_ch[0][msk_tri]
         simu = cov_ch[1][msk_tri]
-        R2, pval = scipy.stats.spearmanr(np.log(meas), np.log(simu))
+        R2, pval = scistats.spearmanr(np.log(meas), np.log(simu))
         zscores[ch, 0] = 0.5 * np.log((1 + R2) / (1 - R2))  # fisher Z (ok for spearman when N>10)
         R2_all[ch, 0] = R2
         pval_all[ch, 0] = pval
@@ -163,7 +211,7 @@ def compare_meas_simu(fname_meas, fname_simu):
         pval_all[ch, 1] = pval
 
         ###### CPLEX NBER ######
-    # Compute a complex matrix combinining amplitude and phase
+    # Compute a complex matrix combining amplitude and phase
     for ch, ch_type in enumerate(ch_types):
         if ch_type == 'grad':
             inds = mne.pick_types(evoked.info, meg='planar1', eeg=choose_ch[ch][1])
@@ -187,7 +235,7 @@ def compare_meas_simu(fname_meas, fname_simu):
             (1 + R2) / (1 - R2))  # fisher Z (ok for spearman when N>10)  Kanji 2006 as ref too
         df = len(meas) - 2
         tscore = R2 * np.sqrt(df) / np.sqrt(1 - R2 * R2)  # Kanji 2006
-        pval = scipy.stats.t.sf(tscore, df)
+        pval = scistats.t.sf(tscore, df)
         pval_all[ch, 2] = pval
         R2_all[ch, 2] = R2
 
