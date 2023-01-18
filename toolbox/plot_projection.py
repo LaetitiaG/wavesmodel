@@ -10,7 +10,7 @@ col_cond = {'trav': 'crimson', 'stand': 'dodgerblue', 'trav_out': 'crimson', 'tr
             'fov_out': 'darkmagenta'}
 
 
-def plot_projection(entry, evoked_gen):
+def plot_projection(entry, evoked_gen, report_path):
     c_wave = entry.stim
     c_space = entry.c_space
 
@@ -51,3 +51,5 @@ def plot_projection(entry, evoked_gen):
         plt.ylabel(chan_toplot[ch_type][0] + '-' + c_space)
         if ch == 2: plt.legend(c_wave, frameon=False); plt.xlabel('time (s)')
     report.add_figs_to_section(f, captions='timecourse at selected sensor', section='bothcond ' + c_space)
+
+    report.save(report_path, overwrite=True)
