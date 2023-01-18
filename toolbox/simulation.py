@@ -182,24 +182,6 @@ def create_stim_inducer(screen_config, times, params, e_cort, stim):
     return sin_inducer
 
 
-
-def create_wave_label_oneHemi(c_space, times, sin_inducer, eccen_screen, angle_label, eccen_label_hemi):
-    """
-    Map stim values on voxel label (for lh and rh labels)
-    And return wave_label depending on c_space (full, quad, fov)
-    Used with apply_tuple, avoiding to have to handle tuple inside
-    """
-    wave_label = np.zeros((len(eccen_label_hemi), len(times)))
-    max_eccen = np.max(eccen_screen)
-    for ind_l, l in enumerate(eccen_label_hemi):
-        if np.max(l) > max_eccen:
-            continue
-        imin = np.argmin(np.abs(eccen_screen - eccen_label_hemi[ind_l]))
-        ind_stim = np.unravel_index(imin, np.shape(eccen_screen))
-        wave_label[ind_l] = sin_inducer[:, ind_stim[0], ind_stim[1]]
-        
-        return wave_label        
-        
 def create_wave_stims(c_space, times, sin_inducer, eccen_screen, angle_label, eccen_label):
     """
     Map stim values on voxel label (for lh and rh labels)
@@ -207,11 +189,10 @@ def create_wave_stims(c_space, times, sin_inducer, eccen_screen, angle_label, ec
     Used with apply_tuple, avoiding to have to handle tuple inside
     """
 
-    def create_wave_label_oneHemi(eccen_label_hemi):
+    def __create_wave_label_single_hemi(eccen_label_hemi):
         """
-        Map stim values on voxel label (for lh and rh labels)
-        And return wave_label depending on c_space (full, quad, fov)
-        Used with apply_tuple, avoiding to have to handle tuple inside
+        Returns 1 hemisphere of wave label
+        To be used with apply_tuple
         """
         wave_label_h = np.zeros((len(eccen_label_hemi), len(times)))
         max_eccen = np.max(eccen_screen)
@@ -222,9 +203,9 @@ def create_wave_stims(c_space, times, sin_inducer, eccen_screen, angle_label, ec
             ind_stim = np.unravel_index(imin, np.shape(eccen_screen))
             wave_label_h[ind_l] = sin_inducer[:, ind_stim[0], ind_stim[1]]
         
-        return wave_label_h 
+        return wave_label_h
     
-    wave_label = apply_tuple(eccen_label,create_wave_label_oneHemi)
+    wave_label = apply_tuple(eccen_label, __create_wave_label_single_hemi)
     if c_space == 'full':
         return wave_label
     if c_space == 'quad':
