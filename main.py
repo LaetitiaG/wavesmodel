@@ -98,7 +98,8 @@ def run_pipeline(entry_list):
         stc = generate_simulation(entry)
         proj = project_wave(entry, stc)
         compare = compare_meas_simu(entry, proj)
-        print(compare)
+        __save_output_to_file(compare)
+        __create_report(entry, projection=True, evoked_gen=proj)
 
 
 def main(argv):
