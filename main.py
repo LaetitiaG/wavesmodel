@@ -80,7 +80,7 @@ def run_pipeline(entry_list):
         print(compare)
 
 
-def run(argv):
+def run_main(argv):
     args = parse_cli(argv)
     if args.get('gui'):
         return input.run_gui()
@@ -93,4 +93,4 @@ def run(argv):
 
 
 if __name__ == "__main__":
-    run(sys.argv[1:])
+    run_main(sys.argv[1:])
