@@ -40,7 +40,9 @@ def show_file_path(mainFrame, txt, var):
 
 def add_file_input(mainFrame, txt, var):
     f = show_file_path(mainFrame, txt, var)
+
     def cmd(): var.set(select_file_window(mainFrame, txt))
+
     load_button = tk.Button(f, text='Browse', command=cmd)
     load_button.pack(side=tk.LEFT)
     return f
@@ -75,6 +77,7 @@ class Listbox(tk.Listbox):
     can handle any type of elements (as regular list) instead of converting
     into string elements (which causes problems then to access class attributes)
     """
+
     def __init__(self, master=None, cnf={}, **kw):
         super(Listbox, self).__init__(master, cnf, **kw)
         self.value = []
@@ -97,4 +100,3 @@ class Listbox(tk.Listbox):
 
     def get_value_list(self):
         return self.value
-
