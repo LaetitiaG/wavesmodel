@@ -190,9 +190,7 @@ def create_wave_stims(c_space, times, sin_inducer, eccen_screen, angle_label, ec
 
     def create_wave_label_oneHemi(eccen_label_hemi):
         """
-        Map stim values on voxel label (for lh and rh labels)
-        And return wave_label depending on c_space (full, quad, fov)
-        Used with apply_tuple, avoiding to have to handle tuple inside
+        Map stim values on voxel label for one single hemisphere
         """
         wave_label_h = np.zeros((len(eccen_label_hemi), len(times)))
         max_eccen = np.max(eccen_screen)
