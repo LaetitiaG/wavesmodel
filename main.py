@@ -1,7 +1,7 @@
 import argparse
 import sys
 from pathlib import Path
-
+import os
 import toolbox.configIO
 from GUI import input
 from toolbox.simulation import generate_simulation
@@ -71,12 +71,23 @@ def parse_cli(argv):
     }
 
 
+def __save_output_to_file(data):
+    directory = Path('./output')
+    if not directory.exists():
+        os.makedirs(directory)
+    with open(directory / 'raw_data.txt', 'w') as file:
+        name = ['phases', 'ampls', 'times', 'info', 'zscores', 'R2_all', 'pval_all', 'matrices']
+        for idx, el in enumerate(data):
+            file.write(name[idx] + ':\n')
+            print(el, file=file)
+            file.write('\n')
+
+
 def run_pipeline(entry_list):
     for entry in entry_list:
         stc = generate_simulation(entry)
         proj = project_wave(entry, stc)
         compare = compare_meas_simu(entry, proj)
-        phases, ampls, times, info, zscores, R2_all, pval_all, matrices = compare
         print(compare)
 
 
