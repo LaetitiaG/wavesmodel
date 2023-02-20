@@ -30,5 +30,14 @@ class TestWriteConfig(unittest.TestCase):
         os.rmdir(path.parent)
 
 
+class TestLoadConfig(unittest.TestCase):
+
+    def test_load_valid_file(self):
+        path = Path('../entry/entry.ini')
+        cfg_obj = configIO.load_config(path)
+        self.assertIsNotNone(cfg_obj)
+        self.assertTrue(cfg_obj.sections())
+
+
 if __name__ == '__main__':
     unittest.main()

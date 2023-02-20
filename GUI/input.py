@@ -113,7 +113,7 @@ class ConfigFrame(ttk.Frame):
     def __init__(self, parent, param, config_path):
         super(ConfigFrame, self).__init__(parent)
         self.path = Path(config_path)
-        self.config_obj = configIO.get_config_object(config_path)
+        self.config_obj = configIO.load_config(config_path)
         self.list_items = tk.Variable(value=self.config_obj.sections())
         self.param = param
         self.param_class = param.__class__
