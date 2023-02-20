@@ -1,6 +1,7 @@
 import unittest
 from argparse import ArgumentTypeError
 from main import parse_cli
+from pathlib import Path
 import subprocess
 
 
@@ -19,14 +20,19 @@ class TestParseCLI(unittest.TestCase):
     def test_valid_entry_config(self):
         # Test that the correct dictionary is returned if the --entry-config argument is valid
         expected_result = {
-            "entry_config_path": '/valid/path',
-            "sensor_file_path": '/another/valid/path',
-            "mri_path": '/yet/another/valid/path',
-            "stim": 'TRAV_OUT',
-            "sim_config_path": '/one/more/valid/path',
-            "screen_config_path": '/last/valid/path',
-            "gui": False
+            "entry_config_path": Path('./entry/entry.ini')
+            # "sensor_file_path": '/another/valid/path',
+            # "mri_path": '/yet/another/valid/path',
+            # "stim": 'TRAV_OUT',
+            # "sim_config_path": '/one/more/valid/path',
+            # "screen_config_path": '/last/valid/path',
+            # "gui": False
         }
-        self.assertEqual(parse_cli(['--entry-config', '/valid/path', '--sensor-file', '/another/valid/path',
-                                    '--mri-path', '/yet/another/valid/path', '--sim-config', '/one/more/valid/path',
-                                    '--screen-config', '/last/valid/path']), expected_result)
+        self.assertEqual(parse_cli(['--entry-config', './entry/entry.ini']), expected_result)
+        # '--sensor-file', '/another/valid/path',
+        # '--mri-path', '/yet/another/valid/path', '--sim-config', '/one/more/valid/path',
+        # '--screen-config', '/last/valid/path'])
+
+
+if __name__ == '__main__':
+    unittest.main()
