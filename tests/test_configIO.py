@@ -38,6 +38,16 @@ class TestLoadConfig(unittest.TestCase):
         self.assertIsNotNone(cfg_obj)
         self.assertTrue(cfg_obj.sections())
 
+    def test_load_invalid_file(self):
+        path = Path('notafile.ini')
+        with self.assertRaises(ValueError):
+            configIO.load_config(path)
+
+    def test_load_invalid_folder(self):
+        path = Path('../entry/')
+        with self.assertRaises(ValueError):
+            configIO.load_config(path)
+
 
 if __name__ == '__main__':
     unittest.main()
