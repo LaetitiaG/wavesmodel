@@ -50,9 +50,3 @@ def read_entry_config(filepath):
         entry.load_entry(config_obj[section], sim_obj, screen_obj)
         entry_list.append(entry)
     return entry_list
-
-# params = simulation_params(5, 0.05, 10e-9, 2)
-# screen_params = screen_params(1920, 1080, 78, 44.2)
-# conf = Config(params, screen_params)
-# config_obj = create_config_file(conf)
-# write_config(config_obj)
