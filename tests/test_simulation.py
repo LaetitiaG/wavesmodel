@@ -127,15 +127,18 @@ class TestCreateSimInducer(unittest.TestCase):
         # Verify that the array contains non-zero values
         self.assertNotEqual(np.count_nonzero(sin_inducer), 0, "Array was not filled for TRAV_IN stimulation")
 
+
 class TestCort_eccen_mm(unittest.TestCase):
     """
     Test function for simulation.cort_eccen_mm
-    """   
+    """
 
-    self.assertEqual(simulation.cort_eccen_mm(0), 0)
-    
-    # simulation.cort_eccen_mm(40) =  17.25        
-    simulation.cort_eccen_mm < 30 # mm - maximal size of V1
-    
+    def test_valid_eccen(self):
+        self.assertEqual(simulation.cort_eccen_mm(0), 0)
+
+        # simulation.cort_eccen_mm(40) =  17.25
+        cort_eccen_mm < 30  # mm - maximal size of V1
+
+
 if __name__ == '__main__':
     unittest.main()

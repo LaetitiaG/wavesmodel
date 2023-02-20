@@ -1,4 +1,4 @@
-import configparser
+import pathlib
 from configparser import ConfigParser
 import utils
 import os.path as op
@@ -10,7 +10,12 @@ def create_config_section(config_obj, params, name, path):
     write_config(config_obj, path)
 
 
-def write_config(config_object, path):
+def write_config(config_object, path: pathlib.Path):
+    """
+
+    :param config_object:
+    :param path:
+    """
     if not op.exists(path.parent):
         makedirs(path.parent)
 
@@ -24,11 +29,7 @@ def write_config(config_object, path):
 def get_config_object(filepath):
     # needs better handling of errors
     config_object = ConfigParser()
-    try:
-        config_object.read(filepath)
-    except:
-        print("ERROR: config file is invalid")
-    return config_object
+    return config_object.read(filepath)
 
 
 def load_config(filepath):
