@@ -82,7 +82,7 @@ class TestCreateScreenGrid(unittest.TestCase):
 
 class TestCreateSimInducer(unittest.TestCase):
     """
-    Test function for simulation.load_labels
+    Test function for simulation.create_stim_inducer
     """
     tstep = 1 / 200
     times = np.arange(2 / tstep + 1) * tstep
@@ -127,6 +127,15 @@ class TestCreateSimInducer(unittest.TestCase):
         # Verify that the array contains non-zero values
         self.assertNotEqual(np.count_nonzero(sin_inducer), 0, "Array was not filled for TRAV_IN stimulation")
 
+class TestCort_eccen_mm(unittest.TestCase):
+    """
+    Test function for simulation.cort_eccen_mm
+    """   
 
+    self.assertEqual(simulation.cort_eccen_mm(0), 0)
+    
+    # simulation.cort_eccen_mm(40) =  17.25        
+    simulation.cort_eccen_mm < 30 # mm - maximal size of V1
+    
 if __name__ == '__main__':
     unittest.main()
