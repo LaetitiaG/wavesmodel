@@ -130,7 +130,7 @@ class TestCreateSimInducer(unittest.TestCase):
         self.assertNotEqual(np.count_nonzero(sin_inducer), 0, "Array was not filled for TRAV_IN stimulation")
 
 
-class TestCort_eccen_mm(unittest.TestCase):
+class TestCortEccenMM(unittest.TestCase):
     """
     Test function for simulation.cort_eccen_mm
     """
