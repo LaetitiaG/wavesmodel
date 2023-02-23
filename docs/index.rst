@@ -11,9 +11,13 @@ Welcome to WAVES toolbox's documentation!
    :caption: Contents:
 
 
+
 Indices and tables
 ==================
 
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+* :ref:`readme`
+* :ref:`toolbox`
+* :ref:`workflow`

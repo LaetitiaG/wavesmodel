@@ -16,6 +16,7 @@ simulation_params = namedtuple("simulation_params",
 # Pass tuple to each mri type. Must be in the same hemisphere order: (left, right)
 mri_paths = namedtuple("mri_paths", ["varea", "angle", "eccen"])
 
+
 screen_params = namedtuple("screen_params",
                            ["width",  # pixel
                             "height",  # pixel
