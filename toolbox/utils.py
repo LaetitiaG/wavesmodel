@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import numpy as np
 
-CONFIG_PATH = Path('config')
+CONFIG_PATH = Path('../config') if 'toolbox' in str(Path('./').absolute()) else Path('config')
 SIM_CONF = CONFIG_PATH / 'simulation.ini'
 SCREEN_CONF = CONFIG_PATH / 'screen.ini'
 

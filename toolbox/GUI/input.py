@@ -1,4 +1,3 @@
-import os
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox as mb
@@ -7,7 +6,8 @@ from tkinter import simpledialog
 from toolbox.GUI import tools
 from toolbox.utils import CONFIG_PATH, SIM_CONF, SCREEN_CONF
 from pathlib import Path
-from toolbox import configIO, utils, main
+from toolbox import configIO, utils
+import main
 from configparser import ConfigParser
 
 

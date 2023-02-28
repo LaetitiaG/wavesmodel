@@ -2,8 +2,8 @@ import argparse
 import sys
 from pathlib import Path
 import os
-import toolbox.configIO
 from toolbox.GUI import input
+from toolbox import configIO
 from toolbox.simulation import generate_simulation
 from toolbox.projection import project_wave
 from toolbox.comparison import compare_meas_simu
@@ -107,7 +107,7 @@ def run_pipeline(entry_list):
         print(compare)
 
 
-def main(argv):
+def main(argv=None):
     """
         The main function of the toolbox. It takes command line arguments as input
         and runs the appropriate pipeline for the given inputs.
@@ -123,13 +123,15 @@ def main(argv):
             ValueError
                 If the entry file path is not provided.
     """
+    if not argv:
+        return input.run_gui()
     args = parse_cli(argv)
     if args.get('gui'):
         return input.run_gui()
     entry_file = args.get('entry_config_path')
     if entry_file is None:
         raise ValueError('You must provide an entry file')
-    entry_list = toolbox.configIO.read_entry_config(entry_file)
+    entry_list = configIO.read_entry_config(entry_file)
     run_pipeline(entry_list)
     print(args)
 

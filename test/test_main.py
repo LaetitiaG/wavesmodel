@@ -1,6 +1,6 @@
 import unittest
 from argparse import ArgumentTypeError
-from toolbox.main import parse_cli
+from main import parse_cli
 from pathlib import Path
 import subprocess
 
