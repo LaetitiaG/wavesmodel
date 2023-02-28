@@ -39,6 +39,14 @@ def __path_or_list(string):
 
 
 def parse_cli(argv):
+    """Parse command line arguments and return a dictionary of the parsed values.
+
+Args:
+argv (list): List of command line arguments to be parsed.
+
+Returns:
+    dict: A dictionary containing the parsed arguments.
+    """
     parser = argparse.ArgumentParser()
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--gui', action='store_true', help='run the GUI mode of the toolbox')
@@ -84,6 +92,14 @@ def __save_output_to_file(data):
 
 
 def run_pipeline(entry_list):
+    """Runs the pipeline for each entry in the list.
+
+        Args:
+            entry_list (list): A list of entry instances.
+
+        Returns:
+            None
+    """
     for entry in entry_list:
         stc = generate_simulation(entry)
         proj = project_wave(entry, stc)
@@ -92,6 +108,21 @@ def run_pipeline(entry_list):
 
 
 def main(argv):
+    """
+        The main function of the toolbox. It takes command line arguments as input
+        and runs the appropriate pipeline for the given inputs.
+
+        Parameters:
+            argv : list of str
+                List of command line arguments.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError
+                If the entry file path is not provided.
+    """
     args = parse_cli(argv)
     if args.get('gui'):
         return input.run_gui()
