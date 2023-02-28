@@ -11,7 +11,7 @@ Welcome to WAVES toolbox's documentation!
    :caption: Contents:
 
    readme
-   toolbox
+   modules
    workflow
 
 

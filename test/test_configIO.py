@@ -3,7 +3,7 @@ from pathlib import Path
 import unittest
 import toolbox.configIO as configIO
 from toolbox.configIO import read_entry_config
-import utils
+from toolbox import utils
 import os
 
 
@@ -46,7 +46,7 @@ class TestLoadConfig(unittest.TestCase):
             configIO.load_config(path)
 
     def test_load_invalid_folder(self):
-        path = Path('../entry/')
+        path = Path('entry/')
         with self.assertRaises(ValueError):
             configIO.load_config(path)
 

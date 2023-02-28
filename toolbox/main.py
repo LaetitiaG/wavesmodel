@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 import os
 import toolbox.configIO
-from GUI import input
+from toolbox.GUI import input
 from toolbox.simulation import generate_simulation
 from toolbox.projection import project_wave
 from toolbox.comparison import compare_meas_simu

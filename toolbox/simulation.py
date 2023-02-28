@@ -3,8 +3,7 @@ import mne
 import nibabel.freesurfer.mghformat as mgh
 import numpy as np
 from copy import deepcopy
-import utils
-from collections import namedtuple
+from toolbox import utils
 
 ## Constant to acces lh and rh in tuple
 LEFT_HEMI = 0
@@ -101,7 +100,7 @@ def create_screen_grid(screen_config):
     e_cort: grid of putative cortical distance for each pixel (in mm of cortex)
 
     Args:
-        screen_config: A named tuple with the following fields:
+        screen_config: A named tuple with the following fields, see :class:`toolbox.utils.Entry`:
             - width (int): The width of the screen in pixels.
             - height (int): The height of the screen in pixels.
             - distanceFrom (float): The distance from the screen in cm.

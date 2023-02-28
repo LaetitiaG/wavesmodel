@@ -1,6 +1,6 @@
 import pathlib
 from configparser import ConfigParser
-import utils
+from toolbox import utils
 import os.path as op
 from os import makedirs
 

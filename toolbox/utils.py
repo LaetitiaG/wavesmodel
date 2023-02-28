@@ -42,16 +42,18 @@ def load_param_from_config(dic, config_obj, section, param_class):
 class Entry:
     """This is a data class to hold the entry data structure
 
-    Attributes:
-        measured (Path): Path to measured EEG .fif file.
-        freesurfer (Path): Path to freesurfer folder.
-        fwd_model (Path): Path to forward model file.
-        stim (str): Type of stimulation, of {'TRAV_OUT', 'STANDING', 'TRAV_IN'}
-        c_space (str): Type of spacial, of {'full', 'quad', 'fov'}
-        simulation_config_section (str): Section in simulation configuration file. Default is 'None'.
-        screen_config_section (str): Section in screen configuration file. Default is 'None'.
-        simulation_params (Namedtuple): Simulation parameters namedtuple.
-        screen_params (Namedtuple): Screen parameters namedtuple.
+    Attributes
+    ----------
+    measured (Path):
+        Path to measured EEG .fif file.
+    freesurfer (Path): Path to freesurfer folder.
+    fwd_model (Path): Path to forward model file.
+    stim (str): Type of stimulation, of {'TRAV_OUT', 'STANDING', 'TRAV_IN'}
+    c_space (str): Type of spacial, of {'full', 'quad', 'fov'}
+    simulation_config_section (str): Section in simulation configuration file. Default is 'None'.
+    screen_config_section (str): Section in screen configuration file. Default is 'None'.
+    simulation_params (Namedtuple): Simulation parameters namedtuple.
+    screen_params (Namedtuple): Screen parameters namedtuple.
     """
     measured: Path = Path('/')
     freesurfer: Path = Path('/')
