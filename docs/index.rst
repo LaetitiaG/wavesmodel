@@ -10,6 +10,10 @@ Welcome to WAVES toolbox's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   readme
+   toolbox
+   workflow
+
 
 
 Indices and tables
@@ -18,6 +22,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-* :ref:`readme`
-* :ref:`toolbox`
-* :ref:`workflow`
