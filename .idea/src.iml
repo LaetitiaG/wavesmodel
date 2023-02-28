@@ -14,4 +14,7 @@
   <component name="PyDocumentationSettings">
     <option name="renderExternalDocumentation" value="true" />
   </component>
+  <component name="ReSTService">
+    <option name="DOC_DIR" value="C:\Users\c3b19\Desktop\WAVES\src\WAVES" />
+  </component>
 </module>

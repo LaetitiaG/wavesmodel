@@ -20,20 +20,26 @@ TRAV_IN = "TRAV_IN"
 lab_ind = 1
 
 
-def apply_tuple(t, f):
+def __apply_tuple(t, f):
+    """ Utility function to apply function 'f' to both elements of tuple 't'
+    """
     x, y = t
     return f(x), f(y)
 
 
-def apply_mask(msk, tpl):
+def __apply_mask(msk, tpl):
+    """ Utility function to apply mask as tuple to a tuple
+    """
     x, y = tpl
     m1, m2 = msk
     return x[m1], y[m2]
 
 
-def safe_tupple_load(retino_tuple):
+def __safe_tupple_load(retino_tuple):
+    """ Applies the mgh.load funtion to both elements of the tuple
+    """
     try:
-        return apply_tuple(retino_tuple, mgh.load)
+        return __apply_tuple(retino_tuple, mgh.load)
     except:
         raise ValueError('Invalid input data')
 
@@ -62,18 +68,18 @@ def load_retino(mri_path):
     if any(any(not path.exists() for path in tup) for tup in retino_paths):
         raise ValueError('Input data is missing or has invalid name')
 
-    retino_labels = safe_tupple_load(retino_paths.varea)
+    retino_labels = __safe_tupple_load(retino_paths.varea)
     # Select V1 (according to the codes used in varea)
-    msk_label = apply_tuple(retino_labels, lambda x: x.get_fdata() == lab_ind)
+    msk_label = __apply_tuple(retino_labels, lambda x: x.get_fdata() == lab_ind)
 
-    def mask(tpl): return apply_mask(msk=msk_label, tpl=tpl)
+    def mask(tpl): return __apply_mask(msk=msk_label, tpl=tpl)
 
-    inds_label = apply_tuple(retino_labels,
-                             lambda x: np.where(np.squeeze(x.get_fdata()) == lab_ind)[0])
-    angle = safe_tupple_load(retino_paths.angle)
-    angle_label = mask(apply_tuple(angle, lambda x: x.get_fdata()))
-    eccen = safe_tupple_load(retino_paths.eccen)
-    eccen_label = mask(apply_tuple(eccen, lambda x: x.get_fdata()))
+    inds_label = __apply_tuple(retino_labels,
+                               lambda x: np.where(np.squeeze(x.get_fdata()) == lab_ind)[0])
+    angle = __safe_tupple_load(retino_paths.angle)
+    angle_label = mask(__apply_tuple(angle, lambda x: x.get_fdata()))
+    eccen = __safe_tupple_load(retino_paths.eccen)
+    eccen_label = mask(__apply_tuple(eccen, lambda x: x.get_fdata()))
     return inds_label, angle_label, eccen_label
 
 
@@ -186,7 +192,7 @@ def create_wave_stims(c_space, times, sin_inducer, eccen_screen, angle_label, ec
     """
     Map stim values on voxel label (for lh and rh labels)
     And return wave_label depending on c_space (full, quad, fov)
-    Used with apply_tuple, avoiding to have to handle tuple inside
+        Used with apply_tuple, avoiding to have to handle tuple inside
     """
 
     def __create_wave_label_single_hemi(eccen_label_hemi):
@@ -205,7 +211,7 @@ def create_wave_stims(c_space, times, sin_inducer, eccen_screen, angle_label, ec
         
         return wave_label_h
     
-    wave_label = apply_tuple(eccen_label, __create_wave_label_single_hemi)
+    wave_label = __apply_tuple(eccen_label, __create_wave_label_single_hemi)
     if c_space == 'full':
         return wave_label
     if c_space == 'quad':
@@ -217,7 +223,7 @@ def create_wave_stims(c_space, times, sin_inducer, eccen_screen, angle_label, ec
         return wave_quad
     elif c_space == 'fov':
         # Create wave stim for foveal condition (session 2)
-        wave_fov = apply_tuple(wave_label, deepcopy)
+        wave_fov = __apply_tuple(wave_label, deepcopy)
         wave_fov[LEFT_HEMI][eccen_label[0] > 5, :] = 0
         wave_fov[RIGHT_HEMI][eccen_label[1] > 5, :] = 0
         return wave_fov
