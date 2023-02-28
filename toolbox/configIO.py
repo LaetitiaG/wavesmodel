@@ -34,7 +34,7 @@ def __get_config_object(filepath):
 
 def load_config(filepath):
     if not op.exists(filepath):
-        raise ValueError("Invalid config file: file does not exist.")
+        return ConfigParser()
     if filepath.is_dir():
         raise ValueError("Invalid config file: file is a directory.")
     return __get_config_object(filepath)
