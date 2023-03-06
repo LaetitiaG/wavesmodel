@@ -1,5 +1,7 @@
 import pathlib
 from configparser import ConfigParser
+
+import toolbox.entry
 import toolbox.utils as utils
 import os.path as op
 from os import makedirs
@@ -46,7 +48,7 @@ def read_entry_config(filepath):
     sim_obj = __get_config_object(utils.SIM_CONF)
     screen_obj = __get_config_object(utils.SCREEN_CONF)
     for section in config_obj.sections():
-        entry = utils.Entry()
+        entry = toolbox.entry.Entry()
         entry.load_entry(config_obj[section], sim_obj, screen_obj)
         entry_list.append(entry)
     return entry_list

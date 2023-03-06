@@ -3,6 +3,7 @@ from tkinter import ttk
 from tkinter import messagebox as mb
 from tkinter import simpledialog
 
+import toolbox.entry
 from toolbox.GUI import tools
 from toolbox.utils import CONFIG_PATH, SIM_CONF, SCREEN_CONF
 from pathlib import Path
@@ -174,7 +175,7 @@ class EntryWindow(tk.Toplevel):
         super(EntryWindow, self).__init__(parent)
         self.grab_set()
         self.new = entry is None
-        self.entry = utils.Entry() if self.new else entry
+        self.entry = toolbox.entry.Entry() if self.new else entry
         self.measuredStringVar = tk.StringVar(self, str(self.entry.measured))
         self.freesurferStringVar = tk.StringVar(self, str(self.entry.freesurfer))
         self.forwardStringVar = tk.StringVar(self, str(self.entry.fwd_model))

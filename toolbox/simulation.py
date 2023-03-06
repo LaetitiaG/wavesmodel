@@ -71,7 +71,8 @@ def load_retino(mri_path):
     # Select V1 (according to the codes used in varea)
     msk_label = __apply_tuple(retino_labels, lambda x: x.get_fdata() == lab_ind)
 
-    def mask(tpl): return __apply_mask(msk=msk_label, tpl=tpl)
+    def mask(tpl):
+        return __apply_mask(msk=msk_label, tpl=tpl)
 
     inds_label = __apply_tuple(retino_labels,
                                lambda x: np.where(np.squeeze(x.get_fdata()) == lab_ind)[0])
@@ -165,18 +166,18 @@ def create_stim_inducer(screen_config, times, params, e_cort, stim):
     if stim == TRAV_OUT:
         def func(t):
             return params.amplitude * \
-                np.sin(2 * np.pi * params.freq_spacial *
-                       e_cort - 2 * np.pi * params.freq_temp * t + params.phase_offset)
+                   np.sin(2 * np.pi * params.freq_spacial *
+                          e_cort - 2 * np.pi * params.freq_temp * t + params.phase_offset)
     elif stim == STANDING:
         def func(t):
             return params.amplitude * \
-                np.sin(2 * np.pi * params.freq_spacial * e_cort + params.phase_offset) * \
-                np.cos(2 * np.pi * params.freq_temp * t)
+                   np.sin(2 * np.pi * params.freq_spacial * e_cort + params.phase_offset) * \
+                   np.cos(2 * np.pi * params.freq_temp * t)
     elif stim == TRAV_IN:
         def func(t):
             return params.amplitude * \
-                np.sin(2 * np.pi * params.freq_spacial *
-                       e_cort + 2 * np.pi * params.freq_temp * t + params.phase_offset)
+                   np.sin(2 * np.pi * params.freq_spacial *
+                          e_cort + 2 * np.pi * params.freq_temp * t + params.phase_offset)
     else:
         raise ValueError('Incorrect stimulation value')  # needs to be InputStimError
 
@@ -207,9 +208,9 @@ def create_wave_stims(c_space, times, sin_inducer, eccen_screen, angle_label, ec
             imin = np.argmin(np.abs(eccen_screen - eccen_label_hemi[ind_l]))
             ind_stim = np.unravel_index(imin, np.shape(eccen_screen))
             wave_label_h[ind_l] = sin_inducer[:, ind_stim[0], ind_stim[1]]
-        
+
         return wave_label_h
-    
+
     wave_label = __apply_tuple(eccen_label, __create_wave_label_single_hemi)
     if c_space == 'full':
         return wave_label
@@ -276,37 +277,46 @@ def fill_stc(stc_gen, c_space, inds_label, angle_label, eccen_label, wave_label)
     return tmp
 
 
-def generate_simulation(entry):
-    sensorsFile = entry.measured
-    mri_path = entry.freesurfer
-    forward_model = entry.fwd_model
-    simulation_params = entry.simulation_params
-    screen_config = entry.screen_params
-    stim = entry.stim
-    c_space = entry.c_space
+class Simulation:
+    def __init__(self,
+                 measured,
+                 freesurfer,
+                 forward_model,
+                 simulation_params,
+                 screen_config,
+                 stim,
+                 c_space):
+        self.measured = measured
+        self.freesurfer = freesurfer
+        self.forward_model = forward_model
+        self.simulation_params = simulation_params
+        self.screen_config = screen_config
+        self.stim = stim
+        self.c_space = c_space
 
-    info = mne.io.read_info(sensorsFile)
-    # Time Parameters for the source signal
-    tstep = 1 / info['sfreq']
-    times = np.arange(2 / tstep + 1) * tstep
+    def generate_simulation(self):
+        info = mne.io.read_info(self.measured)
+        # Time Parameters for the source signal
+        tstep = 1 / info['sfreq']
+        times = np.arange(2 / tstep + 1) * tstep
 
-    # à revoir
-    labels = load_retino(mri_path)
-    inds_label, angle_label, eccen_label = labels
+        # à revoir
+        labels = load_retino(freesurfer)
+        inds_label, angle_label, eccen_label = labels
 
-    # Create the visual stimulus presented on the screen, which should induced cortical waves
-    eccen_screen, e_cort = create_screen_grid(screen_config)
-    stim_inducer = create_stim_inducer(screen_config, times, simulation_params, e_cort, stim)
+        # Create the visual stimulus presented on the screen, which should induced cortical waves
+        eccen_screen, e_cort = create_screen_grid(screen_config)
+        stim_inducer = create_stim_inducer(screen_config, times, simulation_params, e_cort, stim)
 
-    # return wave_label depending on c_space (full, quad or fov)
-    wave_label = create_wave_stims(c_space, times, stim_inducer, eccen_screen, angle_label, eccen_label)
+        # return wave_label depending on c_space (full, quad or fov)
+        wave_label = create_wave_stims(c_space, times, stim_inducer, eccen_screen, angle_label, eccen_label)
 
-    stc_gen = create_stc(forward_model, times, tstep, mri_path)
+        stc_gen = create_stc(forward_model, times, tstep, freesurfer)
 
-    # only wave_label (which depends on c_space)
-    stc = fill_stc(stc_gen, c_space, *labels, wave_label)
+        # only wave_label (which depends on c_space)
+        stc = fill_stc(stc_gen, c_space, *labels, wave_label)
 
-    return stc
+        return stc
 
 
 if __name__ == '__main__':
