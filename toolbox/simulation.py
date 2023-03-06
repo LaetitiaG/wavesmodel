@@ -3,6 +3,7 @@ import mne
 import nibabel.freesurfer.mghformat as mgh
 import numpy as np
 from copy import deepcopy
+
 from toolbox import utils
 
 ## Constant to acces lh and rh in tuple
@@ -34,53 +35,13 @@ def __apply_mask(msk, tpl):
     return x[m1], y[m2]
 
 
-def __safe_tupple_load(retino_tuple):
+def safe_tupple_load(retino_tuple):
     """ Applies the mgh.load funtion to both elements of the tuple
     """
     try:
         return __apply_tuple(retino_tuple, mgh.load)
     except:
         raise ValueError('Invalid input data')
-
-
-def load_retino(mri_path):
-    """
-    Load retinotopy, visual phase and eccentricity for labels of both hemis
-    Args:
-        mri_path: The path to the freesurfer output folder. The architecture of this folder should be the default
-                    as the function will look into 'pfrs' folder to find the datas to load.
-
-    Returns: A tuple containing the following elements:
-        - inds_label (tuple): A tuple containing the indices of the labeled voxels in the left and right hemispheres.
-        - angle_label (tuple): A tuple containing the angle values for the labeled voxels
-            in the left and right hemispheres.
-        - eccen_label (tuple): A tuple containing the eccentricity values for the labeled voxels
-            in the left and right hemispheres.
-    """
-    prfs = mri_path / 'prfs'
-    if not prfs.exists():
-        raise ValueError('Invalid freesurfer folder architecture')
-
-    retino_paths = utils.mri_paths((prfs / 'lh.inferred_varea.mgz', prfs / 'rh.inferred_varea.mgz'),
-                                   (prfs / 'lh.inferred_angle.mgz', prfs / 'rh.inferred_angle.mgz'),
-                                   (prfs / 'lh.inferred_eccen.mgz', prfs / 'rh.inferred_eccen.mgz'))
-    if any(any(not path.exists() for path in tup) for tup in retino_paths):
-        raise ValueError('Input data is missing or has invalid name')
-
-    retino_labels = __safe_tupple_load(retino_paths.varea)
-    # Select V1 (according to the codes used in varea)
-    msk_label = __apply_tuple(retino_labels, lambda x: x.get_fdata() == lab_ind)
-
-    def mask(tpl):
-        return __apply_mask(msk=msk_label, tpl=tpl)
-
-    inds_label = __apply_tuple(retino_labels,
-                               lambda x: np.where(np.squeeze(x.get_fdata()) == lab_ind)[0])
-    angle = __safe_tupple_load(retino_paths.angle)
-    angle_label = mask(__apply_tuple(angle, lambda x: x.get_fdata()))
-    eccen = __safe_tupple_load(retino_paths.eccen)
-    eccen_label = mask(__apply_tuple(eccen, lambda x: x.get_fdata()))
-    return inds_label, angle_label, eccen_label
 
 
 def cort_eccen_mm(x):
@@ -94,6 +55,16 @@ def cort_eccen_mm(x):
     return np.sign(x) * (17.3 * np.abs(x) / (np.abs(x) + 0.75))
 
 
+def create_sim_from_entry(entry):
+    return Simulation(
+        measured=entry.measured,
+        freesurfer=entry.freesurfer,
+        forward_model=entry.forward_model,
+        simulation_params=entry.simulation_params,
+        screen_params=entry.screen_params,
+        stim=entry.stim,
+        c_space=entry.c_space
+    )
 
 
 class Simulation:
@@ -117,6 +88,42 @@ class Simulation:
         info = mne.io.read_info(self.measured)
         self.tstep = 1 / info['sfreq']
         self.times = np.arange(2 / self.tstep + 1) * self.tstep
+
+    def __load_retino(self):
+        """
+        Load retinotopy, visual phase and eccentricity for labels of both hemis
+
+        Returns: A tuple containing the following elements:
+            - inds_label (tuple): A tuple containing the indices of the labeled voxels in the left and right hemispheres.
+            - angle_label (tuple): A tuple containing the angle values for the labeled voxels
+                in the left and right hemispheres.
+            - eccen_label (tuple): A tuple containing the eccentricity values for the labeled voxels
+                in the left and right hemispheres.
+        """
+        prfs = self.freesurfer / 'prfs'
+        if not prfs.exists():
+            raise ValueError('Invalid freesurfer folder architecture')
+
+        retino_paths = utils.mri_paths((prfs / 'lh.inferred_varea.mgz', prfs / 'rh.inferred_varea.mgz'),
+                                       (prfs / 'lh.inferred_angle.mgz', prfs / 'rh.inferred_angle.mgz'),
+                                       (prfs / 'lh.inferred_eccen.mgz', prfs / 'rh.inferred_eccen.mgz'))
+        if any(any(not path.exists() for path in tup) for tup in retino_paths):
+            raise ValueError('Input data is missing or has invalid name')
+
+        retino_labels = safe_tupple_load(retino_paths.varea)
+        # Select V1 (according to the codes used in varea)
+        msk_label = __apply_tuple(retino_labels, lambda x: x.get_fdata() == lab_ind)
+
+        def mask(tpl):
+            return __apply_mask(msk=msk_label, tpl=tpl)
+
+        inds_label = __apply_tuple(retino_labels,
+                                   lambda x: np.where(np.squeeze(x.get_fdata()) == lab_ind)[0])
+        angle = __safe_tupple_load(retino_paths.angle)
+        angle_label = mask(__apply_tuple(angle, lambda x: x.get_fdata()))
+        eccen = __safe_tupple_load(retino_paths.eccen)
+        eccen_label = mask(__apply_tuple(eccen, lambda x: x.get_fdata()))
+        return inds_label, angle_label, eccen_label
 
     def __create_screen_grid(self):
         """
@@ -299,7 +306,7 @@ class Simulation:
 
     def generate_simulation(self):
         # à revoir
-        labels = load_retino(self.freesurfer)
+        labels = self.__load_retino()
         inds_label, angle_label, eccen_label = labels
 
         # Create the visual stimulus presented on the screen, which should induced cortical waves
@@ -315,7 +322,3 @@ class Simulation:
         stc = self.__fill_stc(stc_gen, *labels, wave_label)
 
         return stc
-
-
-if __name__ == '__main__':
-    file = sys.argv[1]

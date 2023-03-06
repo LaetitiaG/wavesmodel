@@ -4,7 +4,7 @@ from pathlib import Path
 import os
 from toolbox.GUI import input
 from toolbox import configIO
-from toolbox.simulation import generate_simulation
+from toolbox.simulation import create_sim_from_entry
 from toolbox.projection import project_wave
 from toolbox.comparison import compare_meas_simu
 
@@ -101,7 +101,8 @@ def run_pipeline(entry_list):
             None
     """
     for entry in entry_list:
-        stc = generate_simulation(entry)
+        sim = create_sim_from_entry(entry)
+        stc = sim.generate_simulation()
         proj = project_wave(entry, stc)
         compare = compare_meas_simu(entry, proj)
         print(compare)
