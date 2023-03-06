@@ -94,187 +94,6 @@ def cort_eccen_mm(x):
     return np.sign(x) * (17.3 * np.abs(x) / (np.abs(x) + 0.75))
 
 
-def create_screen_grid(screen_config):
-    """
-    Returns 2 screen grids:
-    eccen_screen: grid of eccentricity value for each pixel (in °VA from the fovea)
-    e_cort: grid of putative cortical distance for each pixel (in mm of cortex)
-
-    Args:
-        screen_config: A named tuple with the following fields, see :class:`toolbox.utils.Entry`:
-            - width (int): The width of the screen in pixels.
-            - height (int): The height of the screen in pixels.
-            - distanceFrom (float): The distance from the screen in cm.
-            - heightCM (float): The height of the screen in cm.
-
-    Returns:
-        A tuple containing the following elements:
-            - eccen_screen (np.ndarray): A 2D array of eccentricity values.
-            - e_cort (np.ndarray): A 2D array of cortical distances.
-    """
-    # Check if any of the screen_config values are invalid
-    if any(value <= 0 for value in screen_config):
-        raise ValueError('Invalid input data')
-
-    width_screen_pix = screen_config.width
-    height_screen_pix = screen_config.height
-    height_screen_cm = screen_config.heightCM
-    distance_from_screen = screen_config.distanceFrom
-
-    # Find pixel coordinates of the center
-    half_x_screen_pix = int(width_screen_pix / 2)
-    half_y_screen_pix = int(height_screen_pix / 2)
-
-    # Create grids in pixels then in cm from the center
-    width_array = np.arange(-half_x_screen_pix, half_x_screen_pix, step=1, dtype=int)
-    height_array = np.arange(-half_y_screen_pix, half_y_screen_pix, step=1, dtype=int)
-    x, y = np.meshgrid(width_array, height_array)  # coordinates in pixels
-    cm_per_pixel = height_screen_cm / height_screen_pix  # cm
-    eccen_screen_cm = np.sqrt((x * cm_per_pixel) ** 2 + (y * cm_per_pixel) ** 2)
-
-    # Create grids in °VA
-    eccen_screen = np.degrees(np.arctan(eccen_screen_cm / distance_from_screen))
-
-    # Create screen grid corresponding to putative cortical distance
-    e_cort = cort_eccen_mm(eccen_screen)  # in mm of cortex
-
-    return eccen_screen, e_cort
-
-
-def create_stim_inducer(screen_config, times, params, e_cort, stim):
-    """
-    Create the visual stimulus presented on the screen, which should induce cortical waves.
-
-    Args:
-        screen_config: A named tuple with the following fields:
-            - width (int): The width of the screen in pixels.
-            - height (int): The height of the screen in pixels.
-            - distanceFrom (float): The distance from the screen in cm.
-            - heightCM (float): The height of the screen in cm.
-        times (ndarray): An array of time points.
-        params: A named tuple with the following fields:
-            - amplitude (float): The amplitude of the stimulus.
-            - freq_spacial (float): The spatial frequency of the stimulus.
-            - freq_temp (float): The temporal frequency of the stimulus.
-            - phase_offset (float): The phase offset of the stimulus.
-        e_cort (ndarray): An array of cortical distances.
-        stim (str): The type of stimulation, one of `TRAV_OUT`, `STANDING`, or `TRAV_IN`.
-
-    Returns:
-        An ndarray containing the screen luminance values for each time point and pixel.
-    """
-    if stim == TRAV_OUT:
-        def func(t):
-            return params.amplitude * \
-                   np.sin(2 * np.pi * params.freq_spacial *
-                          e_cort - 2 * np.pi * params.freq_temp * t + params.phase_offset)
-    elif stim == STANDING:
-        def func(t):
-            return params.amplitude * \
-                   np.sin(2 * np.pi * params.freq_spacial * e_cort + params.phase_offset) * \
-                   np.cos(2 * np.pi * params.freq_temp * t)
-    elif stim == TRAV_IN:
-        def func(t):
-            return params.amplitude * \
-                   np.sin(2 * np.pi * params.freq_spacial *
-                          e_cort + 2 * np.pi * params.freq_temp * t + params.phase_offset)
-    else:
-        raise ValueError('Incorrect stimulation value')  # needs to be InputStimError
-
-    sin_inducer = np.zeros((len(times), screen_config.height, screen_config.width))
-    # apply func on times
-    for idx, time in enumerate(times):
-        sin_inducer[idx] = func(time)
-    return sin_inducer
-
-
-def create_wave_stims(c_space, times, sin_inducer, eccen_screen, angle_label, eccen_label):
-    """
-    Map stim values on voxel label (for lh and rh labels)
-    And return wave_label depending on c_space (full, quad, fov)
-        Used with apply_tuple, avoiding to have to handle tuple inside
-    """
-
-    def __create_wave_label_single_hemi(eccen_label_hemi):
-        """
-        Returns 1 hemisphere of wave label
-        To be used with apply_tuple
-        """
-        wave_label_h = np.zeros((len(eccen_label_hemi), len(times)))
-        max_eccen = np.max(eccen_screen)
-        for ind_l, l in enumerate(eccen_label_hemi):
-            if np.max(l) > max_eccen:
-                continue
-            imin = np.argmin(np.abs(eccen_screen - eccen_label_hemi[ind_l]))
-            ind_stim = np.unravel_index(imin, np.shape(eccen_screen))
-            wave_label_h[ind_l] = sin_inducer[:, ind_stim[0], ind_stim[1]]
-
-        return wave_label_h
-
-    wave_label = __apply_tuple(eccen_label, __create_wave_label_single_hemi)
-    if c_space == 'full':
-        return wave_label
-    if c_space == 'quad':
-        # Create wave stim for quadrant condition (session 1)
-        wave_quad = deepcopy(wave_label[LEFT_HEMI])
-        mask_quad = (angle_label[LEFT_HEMI] > 90 + 5) & (angle_label[LEFT_HEMI] < 180 - 5)
-        mask = np.invert(mask_quad)  # right lower quadrant
-        wave_quad[mask, :] = 0
-        return wave_quad
-    elif c_space == 'fov':
-        # Create wave stim for foveal condition (session 2)
-        wave_fov = __apply_tuple(wave_label, deepcopy)
-        wave_fov[LEFT_HEMI][eccen_label[0] > 5, :] = 0
-        wave_fov[RIGHT_HEMI][eccen_label[1] > 5, :] = 0
-        return wave_fov
-    else:  # handle wrong c_space
-        return wave_label
-
-
-def create_stc(forward_model, times, tstep, mri_path):
-    # Load forward model
-    fwd = mne.read_forward_solution(forward_model)
-    src = fwd['src']  # source space
-
-    # Create empty stc
-    # need to indicate the directory of the freesurfer files for given subject
-    labels = mne.read_labels_from_annot(mri_path.name, subjects_dir=mri_path.parent,
-                                        parc='aparc.a2009s')  # aparc.DKTatlas
-    n_labels = len(labels)
-    signal = np.zeros((n_labels, len(times)))
-    return mne.simulation.simulate_stc(src, labels, signal, times[0], tstep,
-                                       value_fun=lambda x: x)  # labels or label_sel
-
-
-def fill_stc(stc_gen, c_space, inds_label, angle_label, eccen_label, wave_label):
-    stc_angle = stc_gen.copy()  # only for left hemisphere
-    stc_eccen = stc_gen.copy()
-    tmp = None
-
-    if c_space == 'full':
-        tmp = stc_gen.copy()
-        for i in inds_label[LEFT_HEMI]:
-            if i in stc_gen.lh_vertno:
-                i_stc = np.where(i == stc_gen.lh_vertno)[0][0]
-                tmp.lh_data[i_stc] = wave_label[LEFT_HEMI][inds_label[LEFT_HEMI] == i]
-                stc_eccen.lh_data[i_stc] = eccen_label[LEFT_HEMI][inds_label[LEFT_HEMI] == i]
-                stc_angle.lh_data[i_stc] = angle_label[LEFT_HEMI][inds_label[LEFT_HEMI] == i]
-
-        for i in inds_label[RIGHT_HEMI]:
-            if i in stc_gen.rh_vertno:
-                i_stc = np.where(i == stc_gen.rh_vertno)[0][0]
-                tmp.rh_data[i_stc] = wave_label[RIGHT_HEMI][inds_label[RIGHT_HEMI] == i]
-                stc_eccen.rh_data[i_stc] = eccen_label[RIGHT_HEMI][inds_label[RIGHT_HEMI] == i]
-                stc_angle.rh_data[i_stc] = angle_label[RIGHT_HEMI][inds_label[RIGHT_HEMI] == i]
-
-    elif c_space == 'quad':
-        tmp = stc_gen.copy()
-        for i in inds_label[LEFT_HEMI]:
-            if i in stc_gen.lh_vertno:
-                i_stc = np.where(i == stc_gen.lh_vertno)[0][0]
-                tmp.lh_data[i_stc] = wave_label[inds_label[0] == i]
-
-    return tmp
 
 
 class Simulation:
@@ -283,38 +102,217 @@ class Simulation:
                  freesurfer,
                  forward_model,
                  simulation_params,
-                 screen_config,
+                 screen_params,
                  stim,
                  c_space):
         self.measured = measured
         self.freesurfer = freesurfer
         self.forward_model = forward_model
         self.simulation_params = simulation_params
-        self.screen_config = screen_config
+        self.screen_params = screen_params
         self.stim = stim
         self.c_space = c_space
 
-    def generate_simulation(self):
-        info = mne.io.read_info(self.measured)
         # Time Parameters for the source signal
-        tstep = 1 / info['sfreq']
-        times = np.arange(2 / tstep + 1) * tstep
+        info = mne.io.read_info(self.measured)
+        self.tstep = 1 / info['sfreq']
+        self.times = np.arange(2 / self.tstep + 1) * self.tstep
 
+    def __create_screen_grid(self):
+        """
+        Returns 2 screen grids:
+        eccen_screen: grid of eccentricity value for each pixel (in °VA from the fovea)
+        e_cort: grid of putative cortical distance for each pixel (in mm of cortex)
+
+        Args:
+            screen_config: A named tuple with the following fields, see :class:`toolbox.utils.Entry`:
+                - width (int): The width of the screen in pixels.
+                - height (int): The height of the screen in pixels.
+                - distanceFrom (float): The distance from the screen in cm.
+                - heightCM (float): The height of the screen in cm.
+
+        Returns:
+            A tuple containing the following elements:
+                - eccen_screen (np.ndarray): A 2D array of eccentricity values.
+                - e_cort (np.ndarray): A 2D array of cortical distances.
+        """
+        # Check if any of the screen_config values are invalid
+        if any(value <= 0 for value in self.screen_params):
+            raise ValueError('Invalid input data')
+
+        width_screen_pix = self.screen_params.width
+        height_screen_pix = self.screen_params.height
+        height_screen_cm = self.screen_params.heightCM
+        distance_from_screen = self.screen_params.distanceFrom
+
+        # Find pixel coordinates of the center
+        half_x_screen_pix = int(width_screen_pix / 2)
+        half_y_screen_pix = int(height_screen_pix / 2)
+
+        # Create grids in pixels then in cm from the center
+        width_array = np.arange(-half_x_screen_pix, half_x_screen_pix, step=1, dtype=int)
+        height_array = np.arange(-half_y_screen_pix, half_y_screen_pix, step=1, dtype=int)
+        x, y = np.meshgrid(width_array, height_array)  # coordinates in pixels
+        cm_per_pixel = height_screen_cm / height_screen_pix  # cm
+        eccen_screen_cm = np.sqrt((x * cm_per_pixel) ** 2 + (y * cm_per_pixel) ** 2)
+
+        # Create grids in °VA
+        eccen_screen = np.degrees(np.arctan(eccen_screen_cm / distance_from_screen))
+
+        # Create screen grid corresponding to putative cortical distance
+        e_cort = cort_eccen_mm(eccen_screen)  # in mm of cortex
+
+        return eccen_screen, e_cort
+
+    def __create_stim_inducer(self, e_cort):
+        """
+        Create the visual stimulus presented on the screen, which should induce cortical waves.
+
+        Args:
+            screen_config: A named tuple with the following fields:
+                - width (int): The width of the screen in pixels.
+                - height (int): The height of the screen in pixels.
+                - distanceFrom (float): The distance from the screen in cm.
+                - heightCM (float): The height of the screen in cm.
+            times (ndarray): An array of time points.
+            params: A named tuple with the following fields:
+                - amplitude (float): The amplitude of the stimulus.
+                - freq_spacial (float): The spatial frequency of the stimulus.
+                - freq_temp (float): The temporal frequency of the stimulus.
+                - phase_offset (float): The phase offset of the stimulus.
+            e_cort (ndarray): An array of cortical distances.
+            stim (str): The type of stimulation, one of `TRAV_OUT`, `STANDING`, or `TRAV_IN`.
+
+        Returns:
+            An ndarray containing the screen luminance values for each time point and pixel.
+        """
+        params = self.screen_params
+        if self.stim == TRAV_OUT:
+            def func(t):
+                return params.amplitude * \
+                       np.sin(2 * np.pi * params.freq_spacial *
+                              e_cort - 2 * np.pi * params.freq_temp * t + params.phase_offset)
+        elif self.stim == STANDING:
+            def func(t):
+                return params.amplitude * \
+                       np.sin(2 * np.pi * params.freq_spacial * e_cort + params.phase_offset) * \
+                       np.cos(2 * np.pi * params.freq_temp * t)
+        elif self.stim == TRAV_IN:
+            def func(t):
+                return params.amplitude * \
+                       np.sin(2 * np.pi * params.freq_spacial *
+                              e_cort + 2 * np.pi * params.freq_temp * t + params.phase_offset)
+        else:
+            raise ValueError('Incorrect stimulation value')  # needs to be InputStimError
+
+        sin_inducer = np.zeros((len(self.times), self.screen_params.height, self.screen_params.width))
+        # apply func on times
+        for idx, time in enumerate(self.times):
+            sin_inducer[idx] = func(time)
+        return sin_inducer
+
+    def __create_wave_stims(self, sin_inducer, eccen_screen, angle_label, eccen_label):
+        """
+        Map stim values on voxel label (for lh and rh labels)
+        And return wave_label depending on c_space (full, quad, fov)
+            Used with apply_tuple, avoiding to have to handle tuple inside
+        """
+
+        def __create_wave_label_single_hemi(eccen_label_hemi):
+            """
+            Returns 1 hemisphere of wave label
+            To be used with apply_tuple
+            """
+            wave_label_h = np.zeros((len(eccen_label_hemi), len(self.times)))
+            max_eccen = np.max(eccen_screen)
+            for ind_l, l in enumerate(eccen_label_hemi):
+                if np.max(l) > max_eccen:
+                    continue
+                imin = np.argmin(np.abs(eccen_screen - eccen_label_hemi[ind_l]))
+                ind_stim = np.unravel_index(imin, np.shape(eccen_screen))
+                wave_label_h[ind_l] = sin_inducer[:, ind_stim[0], ind_stim[1]]
+
+            return wave_label_h
+
+        wave_label = __apply_tuple(eccen_label, __create_wave_label_single_hemi)
+        if self.c_space == 'full':
+            return wave_label
+        if self.c_space == 'quad':
+            # Create wave stim for quadrant condition (session 1)
+            wave_quad = deepcopy(wave_label[LEFT_HEMI])
+            mask_quad = (angle_label[LEFT_HEMI] > 90 + 5) & (angle_label[LEFT_HEMI] < 180 - 5)
+            mask = np.invert(mask_quad)  # right lower quadrant
+            wave_quad[mask, :] = 0
+            return wave_quad
+        elif self.c_space == 'fov':
+            # Create wave stim for foveal condition (session 2)
+            wave_fov = __apply_tuple(wave_label, deepcopy)
+            wave_fov[LEFT_HEMI][eccen_label[0] > 5, :] = 0
+            wave_fov[RIGHT_HEMI][eccen_label[1] > 5, :] = 0
+            return wave_fov
+        else:  # handle wrong c_space
+            return wave_label
+
+    def __create_stc(self):
+        # Load forward model
+        fwd = mne.read_forward_solution(self.forward_model)
+        src = fwd['src']  # source space
+
+        # Create empty stc
+        # need to indicate the directory of the freesurfer files for given subject
+        labels = mne.read_labels_from_annot(self.freesurfer.name, subjects_dir=self.freesurfer.parent,
+                                            parc='aparc.a2009s')  # aparc.DKTatlas
+        n_labels = len(labels)
+        signal = np.zeros((n_labels, len(self.times)))
+        return mne.simulation.simulate_stc(src, labels, signal, self.times[0], self.tstep,
+                                           value_fun=lambda x: x)  # labels or label_sel
+
+    def __fill_stc(self, stc_gen, inds_label, angle_label, eccen_label, wave_label):
+        stc_angle = stc_gen.copy()  # only for left hemisphere
+        stc_eccen = stc_gen.copy()
+        tmp = None
+
+        if self.c_space == 'full':
+            tmp = stc_gen.copy()
+            for i in inds_label[LEFT_HEMI]:
+                if i in stc_gen.lh_vertno:
+                    i_stc = np.where(i == stc_gen.lh_vertno)[0][0]
+                    tmp.lh_data[i_stc] = wave_label[LEFT_HEMI][inds_label[LEFT_HEMI] == i]
+                    stc_eccen.lh_data[i_stc] = eccen_label[LEFT_HEMI][inds_label[LEFT_HEMI] == i]
+                    stc_angle.lh_data[i_stc] = angle_label[LEFT_HEMI][inds_label[LEFT_HEMI] == i]
+
+            for i in inds_label[RIGHT_HEMI]:
+                if i in stc_gen.rh_vertno:
+                    i_stc = np.where(i == stc_gen.rh_vertno)[0][0]
+                    tmp.rh_data[i_stc] = wave_label[RIGHT_HEMI][inds_label[RIGHT_HEMI] == i]
+                    stc_eccen.rh_data[i_stc] = eccen_label[RIGHT_HEMI][inds_label[RIGHT_HEMI] == i]
+                    stc_angle.rh_data[i_stc] = angle_label[RIGHT_HEMI][inds_label[RIGHT_HEMI] == i]
+
+        elif self.c_space == 'quad':
+            tmp = stc_gen.copy()
+            for i in inds_label[LEFT_HEMI]:
+                if i in stc_gen.lh_vertno:
+                    i_stc = np.where(i == stc_gen.lh_vertno)[0][0]
+                    tmp.lh_data[i_stc] = wave_label[inds_label[0] == i]
+
+        return tmp
+
+    def generate_simulation(self):
         # à revoir
-        labels = load_retino(freesurfer)
+        labels = load_retino(self.freesurfer)
         inds_label, angle_label, eccen_label = labels
 
         # Create the visual stimulus presented on the screen, which should induced cortical waves
-        eccen_screen, e_cort = create_screen_grid(screen_config)
-        stim_inducer = create_stim_inducer(screen_config, times, simulation_params, e_cort, stim)
+        eccen_screen, e_cort = self.__create_screen_grid()
+        stim_inducer = self.__create_stim_inducer(e_cort)
 
         # return wave_label depending on c_space (full, quad or fov)
-        wave_label = create_wave_stims(c_space, times, stim_inducer, eccen_screen, angle_label, eccen_label)
+        wave_label = self.__create_wave_stims(stim_inducer, eccen_screen, angle_label, eccen_label)
 
-        stc_gen = create_stc(forward_model, times, tstep, freesurfer)
+        stc_gen = self.__create_stc()
 
         # only wave_label (which depends on c_space)
-        stc = fill_stc(stc_gen, c_space, *labels, wave_label)
+        stc = self.__fill_stc(stc_gen, *labels, wave_label)
 
         return stc
 
