@@ -13,6 +13,7 @@ Welcome to WAVES toolbox's documentation!
    ../readme
    modules
    workflow
+   documentation
 
 
 
