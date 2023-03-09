@@ -73,7 +73,7 @@ class MainFrame(ttk.Frame):
             self.listbox.delete(idx)
 
     def load_config_file(self):
-        filepath = tools.select_file_window(self, self.config_file)
+        filepath = tools.select_file_window(self, self.config_file.get())
         self.config_file.set(filepath)
         for entry in configIO.read_entry_config(filepath):
             self.listbox.insert(tk.END, entry)
@@ -82,7 +82,7 @@ class MainFrame(ttk.Frame):
             #     break
 
     def save_config(self):
-        file = tools.save_file_window(self, self.config_file)
+        file = tools.save_file_window(self, self.config_file.get())
         self.config_file.set(file)
         config_obj = ConfigParser()
         section_idx = 1
@@ -94,7 +94,10 @@ class MainFrame(ttk.Frame):
             config_obj.add_section(section)
             config_obj[section] = entry.create_dictionary()
             section_idx += 1
-        configIO.write_config(config_obj, file)
+        try:
+            configIO.write_config(config_obj, file)
+        except ValueError:
+            mb.showerror("Save error", "You must select a file to save your configuration in.")
 
     def save_config_frame(self):
         f = tools.show_file_path(self, 'Config file', self.config_file)

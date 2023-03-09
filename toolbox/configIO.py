@@ -14,10 +14,12 @@ def create_config_section(config_obj, params, name, path):
 
 def write_config(config_object, path: pathlib.Path):
     """
-
     :param config_object:
     :param path:
     """
+    if path.is_dir():
+        raise ValueError("You must select a file to write into.")
+
     if not op.exists(path.parent):
         makedirs(path.parent)
 
