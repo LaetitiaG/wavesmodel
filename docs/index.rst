@@ -10,7 +10,7 @@ Welcome to WAVES toolbox's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   readme
+   ../readme
    modules
    workflow
 
