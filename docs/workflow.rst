@@ -10,4 +10,12 @@ The toolbox has a really straightforward workflow. As it is designed to be highl
 
 
 
-: you set the simulation and experiment conditions as parameters
+you set the simulation and experiment conditions as parameters
+
+
+The modular design
+------------------
+ The toolbox is designed in a very modular approach to make it easy for users to build their own version that corresponds to their needs.
+This can be found in:
+    * the configuration read/write
+    * the class design for Entry/Simulation

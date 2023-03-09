@@ -97,7 +97,7 @@ class MainFrame(ttk.Frame):
         try:
             configIO.write_config(config_obj, file)
         except ValueError:
-            mb.showerror("Save error", "You must select a file to save your configuration in.")
+            mb.showerror("Save error", "You must select a file to save your configuration.")
 
     def save_config_frame(self):
         f = tools.show_file_path(self, 'Config file', self.config_file)
