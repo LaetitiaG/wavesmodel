@@ -178,7 +178,7 @@ class EntryWindow(tk.Toplevel):
         self.entry = toolbox.entry.Entry() if self.new else entry
         self.measuredStringVar = tk.StringVar(self, str(self.entry.measured))
         self.freesurferStringVar = tk.StringVar(self, str(self.entry.freesurfer))
-        self.forwardStringVar = tk.StringVar(self, str(self.entry.fwd_model))
+        self.forwardStringVar = tk.StringVar(self, str(self.entry.forward_model))
         self.stim_list_box = None
         self.space_list_box = None
         self.simulation_frame = None
