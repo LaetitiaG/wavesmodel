@@ -20,14 +20,14 @@ TRAV_IN = "TRAV_IN"
 lab_ind = 1
 
 
-def __apply_tuple(t, f):
+def apply_tuple(t, f):
     """ Utility function to apply function 'f' to both elements of tuple 't'
     """
     x, y = t
     return f(x), f(y)
 
 
-def __apply_mask(msk, tpl):
+def apply_mask(msk, tpl):
     """ Utility function to apply mask as tuple to a tuple
     """
     x, y = tpl
@@ -39,7 +39,7 @@ def safe_tupple_load(retino_tuple):
     """ Applies the mgh.load funtion to both elements of the tuple
     """
     try:
-        return __apply_tuple(retino_tuple, mgh.load)
+        return apply_tuple(retino_tuple, mgh.load)
     except:
         raise ValueError('Invalid input data')
 
@@ -112,17 +112,17 @@ class Simulation:
 
         retino_labels = safe_tupple_load(retino_paths.varea)
         # Select V1 (according to the codes used in varea)
-        msk_label = __apply_tuple(retino_labels, lambda x: x.get_fdata() == lab_ind)
+        msk_label = apply_tuple(retino_labels, lambda x: x.get_fdata() == lab_ind)
 
         def mask(tpl):
-            return __apply_mask(msk=msk_label, tpl=tpl)
+            return apply_mask(msk=msk_label, tpl=tpl)
 
-        inds_label = __apply_tuple(retino_labels,
+        inds_label = apply_tuple(retino_labels,
                                    lambda x: np.where(np.squeeze(x.get_fdata()) == lab_ind)[0])
-        angle = __safe_tupple_load(retino_paths.angle)
-        angle_label = mask(__apply_tuple(angle, lambda x: x.get_fdata()))
-        eccen = __safe_tupple_load(retino_paths.eccen)
-        eccen_label = mask(__apply_tuple(eccen, lambda x: x.get_fdata()))
+        angle = safe_tupple_load(retino_paths.angle)
+        angle_label = mask(apply_tuple(angle, lambda x: x.get_fdata()))
+        eccen = safe_tupple_load(retino_paths.eccen)
+        eccen_label = mask(apply_tuple(eccen, lambda x: x.get_fdata()))
         return inds_label, angle_label, eccen_label
 
     def __create_screen_grid(self):
@@ -241,7 +241,7 @@ class Simulation:
 
             return wave_label_h
 
-        wave_label = __apply_tuple(eccen_label, __create_wave_label_single_hemi)
+        wave_label = apply_tuple(eccen_label, __create_wave_label_single_hemi)
         if self.c_space == 'full':
             return wave_label
         if self.c_space == 'quad':
@@ -253,7 +253,7 @@ class Simulation:
             return wave_quad
         elif self.c_space == 'fov':
             # Create wave stim for foveal condition (session 2)
-            wave_fov = __apply_tuple(wave_label, deepcopy)
+            wave_fov = apply_tuple(wave_label, deepcopy)
             wave_fov[LEFT_HEMI][eccen_label[0] > 5, :] = 0
             wave_fov[RIGHT_HEMI][eccen_label[1] > 5, :] = 0
             return wave_fov
