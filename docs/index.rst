@@ -3,14 +3,16 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+
 Welcome to WAVES toolbox's documentation!
 =========================================
 
 .. toctree::
    :maxdepth: 2
+   :titlesonly:
    :caption: Contents:
 
-   ../readme
+   /../readme
    modules
    workflow
    documentation
