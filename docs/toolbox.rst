@@ -12,13 +12,6 @@ Subpackages
 Submodules
 ----------
 
-toolbox.Errors module
----------------------
-
-.. automodule:: toolbox.Errors
-   :members:
-   :undoc-members:
-   :show-inheritance:
 
 toolbox.comparison module
 -------------------------
@@ -32,14 +25,6 @@ toolbox.configIO module
 -----------------------
 
 .. automodule:: toolbox.configIO
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-toolbox.main module
--------------------
-
-.. automodule:: toolbox.main
    :members:
    :undoc-members:
    :show-inheritance:
