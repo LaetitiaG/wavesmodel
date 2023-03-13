@@ -17,5 +17,5 @@ The modular design
 ------------------
 The toolbox is designed in a very modular approach to make it easy for users to build their own version that corresponds to their needs.
 This can be found in:
-    * the configuration read/write
-    * the class design for Entry/Simulation
+ * the configuration read/write
+ * the class design for Entry/Simulation
