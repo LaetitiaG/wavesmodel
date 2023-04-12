@@ -1,6 +1,6 @@
 import unittest
 
-from utils import mri_paths, simulation_params, screen_params
+from toolbox.utils import simulation_params, screen_params
 import toolbox.simulation as simulation
 from toolbox.simulation import *
 from pathlib import Path
@@ -82,16 +82,18 @@ class TestCreateScreenGrid(unittest.TestCase):
 
 class TestCreateSimInducer(unittest.TestCase):
     """
-    Test function for simulation.load_labels
+    Test function for simulation.create_stim_inducer
     """
-    tstep = 1 / 200
-    times = np.arange(2 / tstep + 1) * tstep
-    params = simulation_params(5, 0.05, 10e-9, np.pi / 2)
-    screen_config = screen_params(1920, 1080, 78, 44.2)
+    def setUp(self) -> None:
+        self.tstep = 1 / 200
+        self.times = np.arange(2 / self.tstep + 1) * self.tstep
+        self.params = simulation_params(5, 0.05, 10e-9, np.pi / 2)
+        self.screen_config = screen_params(1920, 1080, 78, 44.2)
+        _, self.e_cort = simulation.create_screen_grid(self.screen_config)
 
     def test_trav_out_stimulation(self):
         # Create the stimulus for TRAV_OUT stimulation
-        _, e_cort = simulation.create_screen_grid(self.screen_config)
+        e_cort = deepcopy(self.e_cort)
         sin_inducer = create_stim_inducer(self.screen_config, self.times, self.params, e_cort, simulation.TRAV_OUT)
 
         # Verify that the shape of the returned array is correct
@@ -105,7 +107,7 @@ class TestCreateSimInducer(unittest.TestCase):
 
     def test_standing_stimulation(self):
         # Create the stimulus for STANDING stimulation
-        _, e_cort = simulation.create_screen_grid(self.screen_config)
+        e_cort = deepcopy(self.e_cort)
         sin_inducer = create_stim_inducer(self.screen_config, self.times, self.params, e_cort, simulation.STANDING)
 
         # Verify that the shape of the returned array is correct
@@ -117,7 +119,7 @@ class TestCreateSimInducer(unittest.TestCase):
 
     def test_trav_in_stimulation(self):
         # Create the stimulus for TRAV_IN stimulation
-        _, e_cort = simulation.create_screen_grid(self.screen_config)
+        e_cort = deepcopy(self.e_cort)
         sin_inducer = create_stim_inducer(self.screen_config, self.times, self.params, e_cort, simulation.TRAV_IN)
 
         # Verify that the shape of the returned array is correct
@@ -126,6 +128,18 @@ class TestCreateSimInducer(unittest.TestCase):
 
         # Verify that the array contains non-zero values
         self.assertNotEqual(np.count_nonzero(sin_inducer), 0, "Array was not filled for TRAV_IN stimulation")
+
+
+class TestCortEccenMM(unittest.TestCase):
+    """
+    Test function for simulation.cort_eccen_mm
+    """
+
+    def test_valid_eccen(self):
+        self.assertEqual(simulation.cort_eccen_mm(0), 0)
+
+        # simulation.cort_eccen_mm(40) =  17.25
+        # cort_eccen_mm < 30  # mm - maximal size of V1
 
 
 if __name__ == '__main__':

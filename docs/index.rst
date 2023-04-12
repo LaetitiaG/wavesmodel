@@ -10,6 +10,11 @@ Welcome to WAVES toolbox's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   readme
+   modules
+   workflow
+
+
 
 Indices and tables
 ==================
