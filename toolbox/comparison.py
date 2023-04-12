@@ -157,7 +157,7 @@ def compare_meas_simu(entry, ev_proj):
         msk_tri = np.triu(np.ones((len(inds), len(inds)), bool), k=1)  # zero the diagonal and all values below
         meas = cov_ch[0][msk_tri]
         simu = cov_ch[1][msk_tri]
-        R2, pval = scistats.spearmanr(np.log(meas), np.log(simu))
+        R2, pval = scistats.spearmanr(meas, simu)
         zscores[ch, 0] = 0.5 * np.log((1 + R2) / (1 - R2))  # fisher Z (ok for spearman when N>10)
         R2_all[ch, 0] = R2
         pval_all[ch, 0] = pval
