@@ -149,7 +149,8 @@ def compare_meas_simu(entry, ev_proj):
                 # loop across rows
                 for r in range(len(inds)):
                     for c in range(len(inds)):  # loop across column
-                        cov_ch[i, r, c] = np.mean(np.log(ampls_ch[r] / ampls_ch[c]))  # average across time
+                        # average across time and take the log to have a symmetrical matrix
+                        cov_ch[i, r, c] = np.mean(np.log(ampls_ch[r] / ampls_ch[c]))  
 
         cov_amp.append(cov_ch)
 
