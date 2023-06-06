@@ -138,7 +138,7 @@ def compare_meas_simu(entry, ev_proj):
                     # loop across rows
                     for r in range(len(inds)):
                         for c in range(len(inds)):  # loop across column
-                            cov_tmp[j, i, r, c] = np.mean(ampls_ch[r] / ampls_ch[c])
+                            cov_tmp[j, i, r, c] = np.mean(np.log(ampls_ch[r] / ampls_ch[c]))
             cov_ch = cov_tmp.mean(0)
         else:
             inds = mne.pick_types(evoked.info, meg=choose_ch[ch][0], eeg=choose_ch[ch][1])
