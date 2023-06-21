@@ -40,7 +40,33 @@ def circular_mean(phases):
     ang = np.mean(np.exp(1j*phases))
     return atan2(ang.imag, ang.real)
 
+def circular_diff(phases1, phases2):
+    """
+    Calculates the circular difference between two arrays of phases.
 
+    Parameters:
+    phases1 (numpy.ndarray or list): First array of phase values in radians.
+    phases2 (numpy.ndarray or list): Second array of phase values in radians.
+
+    Returns:
+    numpy.ndarray: The array of circular differences between phases1 and phases2 in radians.
+    """
+
+    # Convert inputs to numpy arrays if they are not already
+    phases1 = np.array(np.real(phases1))
+    phases2 = np.array(np.real(phases2))
+
+    # Ensure phases are within the range of 0 to 2*pi
+    phases1 = phases1 % (2 * np.pi)
+    phases2 = phases2 % (2 * np.pi)
+    diff = phases2 - phases1
+
+    # Adjust differences outside of the range -pi to pi
+    diff = np.where(diff > np.pi, diff - 2 * np.pi, diff)
+    diff = np.where(diff < -np.pi, diff + 2 * np.pi, diff)
+
+    return diff
+    
 def create_RSA_matrices(entry, evoked):
     """
     Create RSA matrices for phase and amplitude relationship between each pair
@@ -224,6 +250,9 @@ def compare_meas_simu(entry, ev_proj):
     zscores = np.zeros((len(ch_types), 3))  # zscore of the correlation ch_type*amp/phase/cplx
     R2_all = np.zeros((len(ch_types), 3))
     pval_all = np.zeros((len(ch_types), 3))
+    residuals =  {}
+    
+    np.zeros((len(ch_types), 3))
 
     # Read measured data evoked
     evoked = mne.read_evokeds(entry.measured)[0]
@@ -232,8 +261,8 @@ def compare_meas_simu(entry, ev_proj):
     # Calculate RSA matrices
     phases_meas, ampls_meas, times, matrices_meas = create_RSA_matrices(entry, evoked)
     phases_simu, ampls_simu, times, matrices_simu = create_RSA_matrices(entry, ev_proj)
-    phases = np.stack(phases_meas, phases_simu) # meas/simu
-    ampls = np.stack(ampls_meas, ampls_simu)
+    phases = np.stack((phases_meas, phases_simu)) # meas/simu
+    ampls = np.stack((ampls_meas, ampls_simu))
     
     # Calculate correlations
     for ch, ch_type in enumerate(ch_types):
@@ -241,6 +270,9 @@ def compare_meas_simu(entry, ev_proj):
         mat_simu = matrices_simu[ch_type]
         n_ch = np.shape(mat_meas)[-1]
         msk_tri = np.triu(np.ones((n_ch, n_ch), bool), k=1)  # zero the diagonal and all values below
+        
+        # Initiate residuals dic
+        residuals[ch_type] = np.zeros((3, np.sum(msk_tri)))
         
         # Correlate measured vs predicted matrix
         for i, data in enumerate(['amplitude', 'phase', 'complex']):
@@ -250,19 +282,23 @@ def compare_meas_simu(entry, ev_proj):
             if data == 'amplitude':
                 R2, pval = scistats.spearmanr(meas, simu)
                 zscores[ch, i] = 0.5 * np.log((1 + R2) / (1 - R2))  # fisher Z (ok for spearman when N>10)
+                residuals[ch_type][i] = meas-simu
             elif data == 'phase':
                 R2, zscore, pval = circular_corr(meas, simu)
                 zscores[ch, i] = zscore
+                residuals[ch_type][i] = circular_diff(meas,simu)
             elif data == 'complex':
                 R2 = np.abs(np.corrcoef(meas, simu))[1, 0]
                 # fisher Z (ok for spearman when N>10)  Kanji 2006 as ref too
                 zscores[ch,i] = 0.5 * np.log((1 + R2) / (1 - R2))  
                 df = len(meas) - 2
                 tscore = R2 * np.sqrt(df) / np.sqrt(1 - R2 * R2)  # Kanji 2006
-                pval = scistats.t.sf(tscore, df)                
+                pval = scistats.t.sf(tscore, df)  
+                cplx_residu =  meas-simu
+                residuals[ch_type][i] = cplx_residu.real**2 + cplx_residu.imag**2
                               
             # Store statistics    
             R2_all[ch, i] = R2
-            pval_all[ch, i] = pval    
+            pval_all[ch, i] = pval  
         
-    return phases, ampls, times, evoked.info, zscores, R2_all, pval_all, matrices_meas, matrices_simu
+    return phases, ampls, times, evoked.info, zscores, R2_all, pval_all, matrices_meas, matrices_simu, residuals
