@@ -4,6 +4,7 @@ import nibabel.freesurfer.mghformat as mgh
 import numpy as np
 from copy import deepcopy
 from toolbox import utils
+from numba import jit, float64
 
 ## Constant to acces lh and rh in tuple
 LEFT_HEMI = 0
@@ -81,7 +82,7 @@ def load_retino(mri_path):
     eccen_label = mask(__apply_tuple(eccen, lambda x: x.get_fdata()))
     return inds_label, angle_label, eccen_label
 
-
+@jit
 def cort_eccen_mm(x):
     ''' calculate distance from center of fovea in the cortex (cort_eccen in mm) given the
     % eccentricity in visual field (x in d.v.a)
@@ -112,7 +113,7 @@ def create_screen_grid(screen_config):
             - e_cort (np.ndarray): A 2D array of cortical distances.
     """
     # Check if any of the screen_config values are invalid
-    if any(value <= 0 for value in screen_config):
+    if any([value <= 0 for value in screen_config]):
         raise ValueError('Invalid input data')
 
     width_screen_pix = screen_config.width
@@ -163,16 +164,19 @@ def create_stim_inducer(screen_config, times, params, e_cort, stim):
         An ndarray containing the screen luminance values for each time point and pixel.
     """
     if stim == TRAV_OUT:
+        @jit(nopython=True)
         def func(t):
             return params.amplitude * \
                 np.sin(2 * np.pi * params.freq_spacial *
                        e_cort - 2 * np.pi * params.freq_temp * t + params.phase_offset)
     elif stim == STANDING:
+        @jit(nopython=True)
         def func(t):
             return params.amplitude * \
                 np.sin(2 * np.pi * params.freq_spacial * e_cort + params.phase_offset) * \
                 np.cos(2 * np.pi * params.freq_temp * t)
     elif stim == TRAV_IN:
+        @jit(nopython=True)
         def func(t):
             return params.amplitude * \
                 np.sin(2 * np.pi * params.freq_spacial *
@@ -193,19 +197,19 @@ def create_wave_stims(c_space, times, sin_inducer, eccen_screen, angle_label, ec
     And return wave_label depending on c_space (full, quad, fov)
         Used with apply_tuple, avoiding to have to handle tuple inside
     """
-
+    @jit(float64[:,:](float64[:]),nopython=True)
     def __create_wave_label_single_hemi(eccen_label_hemi):
         """
         Returns 1 hemisphere of wave label
         To be used with apply_tuple
         """
-        wave_label_h = np.zeros((len(eccen_label_hemi), len(times)))
+        wave_label_h = np.zeros((len(eccen_label_hemi), len(times)), dtype=np.float64)
         max_eccen = np.max(eccen_screen)
         for ind_l, l in enumerate(eccen_label_hemi):
-            if np.max(l) > max_eccen:
+            if l > max_eccen:
                 continue
             imin = np.argmin(np.abs(eccen_screen - eccen_label_hemi[ind_l]))
-            ind_stim = np.unravel_index(imin, np.shape(eccen_screen))
+            ind_stim = (imin // eccen_screen.shape[1], imin % eccen_screen.shape[1])  # np.unravel_index(imin, np.shape(eccen_screen)) Not supported by numba            
             wave_label_h[ind_l] = sin_inducer[:, ind_stim[0], ind_stim[1]]
         
         return wave_label_h
@@ -229,21 +233,19 @@ def create_wave_stims(c_space, times, sin_inducer, eccen_screen, angle_label, ec
     else:  # handle wrong c_space
         return wave_label
 
-
-def create_stc(forward_model, times, tstep, mri_path):
+def create_stc(forward_model, times, tstep, mri_path, verbose=False):
     # Load forward model
-    fwd = mne.read_forward_solution(forward_model)
+    fwd = mne.read_forward_solution(forward_model, verbose=verbose)
     src = fwd['src']  # source space
 
     # Create empty stc
     # need to indicate the directory of the freesurfer files for given subject
     labels = mne.read_labels_from_annot(mri_path.name, subjects_dir=mri_path.parent,
-                                        parc='aparc.a2009s')  # aparc.DKTatlas
+                                        parc='aparc.a2009s', verbose=verbose)  # aparc.DKTatlas
     n_labels = len(labels)
     signal = np.zeros((n_labels, len(times)))
     return mne.simulation.simulate_stc(src, labels, signal, times[0], tstep,
                                        value_fun=lambda x: x)  # labels or label_sel
-
 
 def fill_stc(stc_gen, c_space, inds_label, angle_label, eccen_label, wave_label):
     stc_angle = stc_gen.copy()  # only for left hemisphere
@@ -275,8 +277,7 @@ def fill_stc(stc_gen, c_space, inds_label, angle_label, eccen_label, wave_label)
 
     return tmp
 
-
-def generate_simulation(entry):
+def generate_simulation(entry, verbose=False):
     sensorsFile = entry.measured
     mri_path = entry.freesurfer
     forward_model = entry.fwd_model
@@ -285,7 +286,7 @@ def generate_simulation(entry):
     stim = entry.stim
     c_space = entry.c_space
 
-    info = mne.io.read_info(sensorsFile)
+    info = mne.io.read_info(sensorsFile, verbose=verbose)
     # Time Parameters for the source signal
     tstep = 1 / info['sfreq']
     times = np.arange(2 / tstep + 1) * tstep
@@ -301,7 +302,7 @@ def generate_simulation(entry):
     # return wave_label depending on c_space (full, quad or fov)
     wave_label = create_wave_stims(c_space, times, stim_inducer, eccen_screen, angle_label, eccen_label)
 
-    stc_gen = create_stc(forward_model, times, tstep, mri_path)
+    stc_gen = create_stc(forward_model, times, tstep, mri_path, verbose)
 
     # only wave_label (which depends on c_space)
     stc = fill_stc(stc_gen, c_space, *labels, wave_label)
