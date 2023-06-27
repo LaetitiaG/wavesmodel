@@ -2,6 +2,7 @@ import numpy as np
 import mne
 import scipy.stats as scistats
 from math import sqrt, atan2, pi, floor, exp
+from numba import jit
 
 
 def circular_corr(phases1, phases2):
@@ -66,8 +67,9 @@ def circular_diff(phases1, phases2):
     diff = np.where(diff < -np.pi, diff + 2 * np.pi, diff)
 
     return diff
+
     
-def create_RSA_matrices(entry, evoked, ch_type):
+def create_RSA_matrices(entry, evoked, ch_type, verbose=False):
     """
     Create RSA matrices for phase and amplitude relationship between each pair
     of sensors of the given channel type.
@@ -114,7 +116,7 @@ def create_RSA_matrices(entry, evoked, ch_type):
 
     # Extract phase and amplitude at each time point at 5Hz
     dat = ev_ch.data[np.newaxis, :]
-    tfr = mne.time_frequency.tfr_array_morlet(dat, sfreq=sf, freqs=freqs, n_cycles=n_cycles, output='complex')
+    tfr = mne.time_frequency.tfr_array_morlet(dat, sfreq=sf, freqs=freqs, n_cycles=n_cycles, output='complex', n_jobs=4, verbose=verbose)
     phase = np.angle(tfr)
     amp = np.abs(tfr)
 
@@ -184,7 +186,7 @@ def create_RSA_matrices(entry, evoked, ch_type):
     
     return phases, ampls, times,matrices    
 
-def compare_meas_simu_oneChType(entry, ev_proj, ch_type):
+def compare_meas_simu_oneChType(entry, ev_proj, ch_type, verbose=False):
     '''
     Compare the relationships between pairs of sensors in terms of amplitude, phase
     or complex values between measured and simulated signal for a given channel type.
@@ -221,22 +223,22 @@ def compare_meas_simu_oneChType(entry, ev_proj, ch_type):
         Amplitude/phase/complexe matrices for simulated data and each channel pair.
     matrices_simu : ARRAY amp/phase/cplx*Nchan*Nchan
         Amplitude/phase/complexe matrices for measured data and each channel pair.
-    residuals : ARRAY amp/phase/cplx
-        Residuals (measured - simulated).
+    SSR : ARRAY amp/phase/cplx
+        Sum of Squared Residuals (measured - simulated).
         
     '''
 
     # initiate outputs: amp/phase/cplx
     zscores = np.zeros((3));     R2_all = np.zeros((3))
-    pval_all = np.zeros((3));    residuals =  {}
+    pval_all = np.zeros((3));
 
     # Read measured data evoked
-    evoked = mne.read_evokeds(entry.measured)[0]
+    evoked = mne.read_evokeds(entry.measured, verbose=verbose)[0]
     evoked.crop(tmin=0, tmax=2)
 
     # Calculate RSA matrices
-    phases_meas, ampls_meas, times, matrices_meas = create_RSA_matrices(entry, evoked, ch_type)
-    phases_simu, ampls_simu, times, matrices_simu = create_RSA_matrices(entry, ev_proj, ch_type)
+    phases_meas, ampls_meas, times, matrices_meas = create_RSA_matrices(entry, evoked, ch_type, verbose)
+    phases_simu, ampls_simu, times, matrices_simu = create_RSA_matrices(entry, ev_proj, ch_type, verbose)
     phases = np.stack((phases_meas, phases_simu)) # meas/simu
     ampls = np.stack((ampls_meas, ampls_simu))
     
@@ -244,8 +246,8 @@ def compare_meas_simu_oneChType(entry, ev_proj, ch_type):
     Nchan = np.shape(matrices_meas)[-1]
     msk_tri = np.triu(np.ones((Nchan, Nchan), bool), k=1)  # zero the diagonal and all values below
     
-    # Initiate residuals array
-    residuals = np.zeros((3, np.sum(msk_tri)))
+    # Initiate SSR (sum of square of residuals) array
+    SSR = np.zeros((3))
     
     # Correlate measured vs predicted matrix
     for i, data in enumerate(['amplitude', 'phase', 'complex']):
@@ -255,11 +257,11 @@ def compare_meas_simu_oneChType(entry, ev_proj, ch_type):
         if data == 'amplitude':
             R2, pval = scistats.spearmanr(meas, simu)
             zscores[i] = 0.5 * np.log((1 + R2) / (1 - R2))  # fisher Z (ok for spearman when N>10)
-            residuals[i] = meas-simu
+            SSR[i] = np.sum((meas-simu)**2)    
         elif data == 'phase':
             R2, zscore, pval = circular_corr(meas, simu)
             zscores[i] = zscore
-            residuals[i] = circular_diff(meas,simu)
+            SSR[i] = np.sum(circular_diff(meas,simu)**2)
         elif data == 'complex':
             R2 = np.abs(np.corrcoef(meas, simu))[1, 0]
             # fisher Z (ok for spearman when N>10)  Kanji 2006 as ref too
@@ -267,16 +269,16 @@ def compare_meas_simu_oneChType(entry, ev_proj, ch_type):
             df = len(meas) - 2
             tscore = R2 * np.sqrt(df) / np.sqrt(1 - R2 * R2)  # Kanji 2006
             pval = scistats.t.sf(tscore, df) 
-            res_cplx = meas-simu
-            residuals[i] = res_cplx.real**2 + res_cplx.imag**2
+            SSR[i] = np.sum(np.abs((meas-simu)**2))
                           
         # Store statistics    
         R2_all[i] = R2 
         pval_all[i] = pval  
         
-    return phases, ampls, times, evoked.info, zscores, R2_all, pval_all, matrices_meas, matrices_simu, residuals
+    return phases, ampls, times, evoked.info, zscores, R2_all, pval_all, matrices_meas, matrices_simu, SSR
 
-def compare_meas_simu(entry, ev_proj):
+
+def compare_meas_simu(entry, ev_proj, verbose = False):
     '''
     Compare the relationships between pairs of sensors in terms of amplitude, phase
     or complex values between measured and simulated signal.
@@ -311,8 +313,8 @@ def compare_meas_simu(entry, ev_proj):
         Amplitude/phase/complexe matrices for simulated data and each channel pair.
     matrices_simu : DICT {channel type: amp/phase/cplx*chan*chan}
         Amplitude/phase/complexe matrices for measured data and each channel pair.
-    residuals : DICT {channel type: amp/phase/cplx*N}
-        Residuals (measured - simulated).        
+    SSR : DICT {channel type: amp/phase/cplx*N}
+        Sum of Squared Residuals (measured - simulated).       
     '''
 
     # initiate outputs
@@ -320,13 +322,13 @@ def compare_meas_simu(entry, ev_proj):
     zscores = np.zeros((len(ch_types), 3))  # zscore of the correlation ch_type*amp/phase/cplx
     R2_all = np.zeros((len(ch_types), 3))
     pval_all = np.zeros((len(ch_types), 3))
-    residuals =  {}; matrices_meas = {} ; matrices_simu = {}
+    SSR = np.zeros((len(ch_types), 3))
+    matrices_meas = {} ; matrices_simu = {}
     phases = {}; ampls= {}
 
     for ch, ch_type in enumerate(ch_types):
-        phases[ch_type], ampls[ch_type], times, info, zscores[ch], R2_all[ch], pval_all[ch], mat_meas, mat_simu, res = compare_meas_simu_oneChType(entry, ev_proj, ch_type)
+        phases[ch_type], ampls[ch_type], times, info, zscores[ch], R2_all[ch], pval_all[ch], mat_meas, mat_simu, SSR[ch] = compare_meas_simu_oneChType(entry, ev_proj, ch_type, verbose)
         matrices_meas[ch_type] = mat_meas
-        matrices_simu[ch_type] = mat_simu
-        residuals[ch_type] = res               
+        matrices_simu[ch_type] = mat_simu            
         
-    return phases, ampls, times, info, zscores, R2_all, pval_all, matrices_meas, matrices_simu, residuals
+    return phases, ampls, times, info, zscores, R2_all, pval_all, matrices_meas, matrices_simu, SSR
