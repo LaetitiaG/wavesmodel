@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from toolbox.utils import simulation_params, screen_params, load_param_from_config
+from toolbox.utils import simulation_params as simp, screen_params as scp, load_param_from_config
 
 
 @dataclass
@@ -21,21 +21,115 @@ class Entry:
     simulation_params (Namedtuple): Simulation parameters namedtuple.
     screen_params (Namedtuple): Screen parameters namedtuple.
     """
-    measured: Path = Path('/')
-    freesurfer: Path = Path('/')
-    forward_model: Path = Path('/')
-    stim: str = 'None'
-    c_space: str = 'None'
-    simulation_config_section: str = 'None'
-    screen_config_section: str = 'None'
-    simulation_params: simulation_params = simulation_params(*[0] * len(simulation_params._fields))
-    screen_params: screen_params = screen_params(*[0] * len(screen_params._fields))
+    def __init__(self,
+                 measured: Path | str = Path(),
+                 freesurfer: Path | str = Path(),
+                 forward_model: Path | str = Path(),
+                 stim: str = 'None',
+                 c_space: str = 'None',
+                 simulation_config_section: str = 'None',
+                 screen_config_section: str = 'None',
+                 simulation_params: simp = simp(*[0] * len(simp._fields)),
+                 screen_params: scp = scp(*[0] * len(scp._fields))
+                 ):
+        self._measured = measured
+        self._freesurfer = freesurfer
+        self._forward_model = forward_model
+        self._stim = stim
+        self._c_space = c_space
+        self._simulation_config_section = simulation_config_section
+        self._screen_config_section = screen_config_section
+        self._simulation_params = simulation_params
+        self._screen_params = screen_params
 
-    def set_simulation_params(self, simulation_params_list):
-        self.simulation_params = simulation_params(*simulation_params_list)
+    # Getter and setter for 'measured'
+    @property
+    def measured(self):
+        return self._measured
 
-    def set_screen_params(self, screen_params_list):
-        self.screen_params = screen_params(*screen_params_list)
+    @measured.setter
+    def measured(self, value):
+        self._measured = value
+
+    # Getter and setter for 'freesurfer'
+    @property
+    def freesurfer(self):
+        return self._freesurfer
+
+    @freesurfer.setter
+    def freesurfer(self, value):
+        self._freesurfer = value
+
+    # Getter and setter for 'forward_model'
+    @property
+    def forward_model(self):
+        return self._forward_model
+
+    @forward_model.setter
+    def forward_model(self, value):
+        self._forward_model = value
+
+    # Getter and setter for 'stim'
+    @property
+    def stim(self):
+        return self._stim
+
+    @stim.setter
+    def stim(self, value):
+        self._stim = value
+
+    # Getter and setter for 'c_space'
+    @property
+    def c_space(self):
+        return self._c_space
+
+    @c_space.setter
+    def c_space(self, value):
+        self._c_space = value
+
+    # Getter and setter for 'simulation_config_section'
+    @property
+    def simulation_config_section(self):
+        return self._simulation_config_section
+
+    @simulation_config_section.setter
+    def simulation_config_section(self, value):
+        self._simulation_config_section = value
+
+    # Getter and setter for 'screen_config_section'
+    @property
+    def screen_config_section(self):
+        return self._screen_config_section
+
+    @screen_config_section.setter
+    def screen_config_section(self, value):
+        self._screen_config_section = value
+
+    # Getter and setter for 'simulation_params'
+    @property
+    def simulation_params(self):
+        return self._simulation_params
+
+    @simulation_params.setter
+    def simulation_params(self, value):
+        """Passed value can be a sim_params, or a list to create sim_params object"""
+        if type(value) is simp:
+            self._simulation_params = value
+        else:
+            self._simulation_params = simp(*value)
+
+    # Getter and setter for 'screen_params'
+    @property
+    def screen_params(self):
+        return self._screen_params
+
+    @screen_params.setter
+    def screen_params(self, value):
+        """Passed value can be a screen_params, or a list to create screen_params object"""
+        if type(value) is scp:
+            self._screen_params = value
+        else:
+            self._screen_params = scp(*value)
 
     def create_dictionary(self):
         """Return a dictionary representation of the Entry object.
@@ -66,9 +160,9 @@ class Entry:
             Returns:
                 self (Entry)
         """
-        self.measured = Path(dic['measured'])
-        self.freesurfer = Path(dic['freesurfer'])
-        self.forward_model = Path(dic['forward_model'])
+        self.measured = dic['measured']
+        self.freesurfer = dic['freesurfer']
+        self.forward_model = dic['forward_model']
         self.stim = dic['stim']
         self.c_space = dic['c_space']
         self.simulation_config_section = dic['simulation_config_section']

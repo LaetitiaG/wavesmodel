@@ -16,6 +16,8 @@ from scipy.optimize import curve_fit, least_squares
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.stats
+from toolbox.configIO import read_entry_config
+
 
 subject = 'OF4IP5'
 session = 'session2'
@@ -43,9 +45,10 @@ def func(p, entry, ch_type):
     freq_spacial = 0.05
     amplitude = 1e-08
     phase_offset = 1.5707963267948966
-    entry.set_simulation_params([freq_temp, freq_spacial, amplitude, phase_offset])
-       
-    stc = generate_simulation(entry)
+    entry.simulation_params = [freq_temp, freq_spacial, amplitude, phase_offset]
+
+    sim = create_sim_from_entry(entry)
+    stc = sim.generate_simulation()
     proj = project_wave(entry, stc) 
     compare = compare_meas_simu_oneChType(entry, proj, ch_type)
     
@@ -64,7 +67,7 @@ def cost_fun(p, entry, ch_type):
 
 ############ for parameters where we know the parameters space (temporal frequency) ############
 entry_file = "C:\\Users\\laeti\\Data\\wave_model\\scripts_python\\WAVES\\test\\entry\\entry.ini"
-entry_list = configIO.read_entry_config(entry_file)
+entry_list = read_entry_config(entry_file)
 entry = entry_list[0]
 
 parameters_to_test = np.arange(2., 50., 0.5) # freqs
@@ -85,7 +88,7 @@ for parameter in parameters_to_test:
 
 ############ for parameters where we don't know the parameters space ############
 entry_file = "C:\\Users\\laeti\\Data\\wave_model\\scripts_python\\WAVES\\test\\entry\\entry.ini"
-entry_list = configIO.read_entry_config(entry_file)
+entry_list = read_entry_config(entry_file)
 entry = entry_list[0]
 
 ch_type= 'mag'
@@ -96,10 +99,10 @@ results = least_squares(func, x0=p0, args=(entry, ch_type), bounds = bounds, ver
     
 ###### TESTS ##################################################################
 
-from toolbox import configIO
-from toolbox.simulation import generate_simulation
+from toolbox.simulation import Simulation, create_sim_from_entry
 from toolbox.projection import project_wave
 from toolbox.comparison import compare_meas_simu, create_RSA_matrices, compare_meas_simu_oneChType
+from toolbox.entry import Entry
 import time
 
 # Use of scipy.optimize.curve_fit(f, xdata, ydata)
@@ -108,7 +111,7 @@ import time
 # ydata should be of the same shape.
 
 entry_file = "C:\\Users\\laeti\\Data\\wave_model\\scripts_python\\WAVES\\test\\entry\\entry.ini"
-entry_list = configIO.read_entry_config(entry_file)
+entry_list = read_entry_config(entry_file)
 entry = entry_list[0]
 
 
@@ -128,10 +131,10 @@ entry_dic = {
     'simulation_params' : simulation_params, 
     'screen_params' : screen_params}
 
-entry = utils.Entry.load_entry(entry_dic)
+entry = Entry().load_entry(entry_dic)
 
-    simulation_config_section='0cfg', 
-    screen_config_section='cfg1',
+simulation_config_section='0cfg',
+screen_config_section='cfg1',
 
 
 # xdata = xdata(subject, session, cond, sensorspath, epoch_type, ep_name)
