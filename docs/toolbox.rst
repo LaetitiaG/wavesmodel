@@ -21,10 +21,34 @@ toolbox.comparison module
    :undoc-members:
    :show-inheritance:
 
+toolbox.comparison module
+-------------------------
+
+.. automodule:: toolbox.comparison
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 toolbox.configIO module
 -----------------------
 
 .. automodule:: toolbox.configIO
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+toolbox.plot\_comparison module
+-------------------------------
+
+.. automodule:: toolbox.plot_comparison
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+toolbox.plot\_projection module
+-------------------------------
+
+.. automodule:: toolbox.plot_projection
    :members:
    :undoc-members:
    :show-inheritance:
