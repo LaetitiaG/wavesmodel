@@ -49,7 +49,7 @@ class Entry:
 
     @measured.setter
     def measured(self, value):
-        self._measured = value
+        self._measured = Path(value)
 
     # Getter and setter for 'freesurfer'
     @property
@@ -58,7 +58,7 @@ class Entry:
 
     @freesurfer.setter
     def freesurfer(self, value):
-        self._freesurfer = value
+        self._freesurfer = Path(value)
 
     # Getter and setter for 'forward_model'
     @property
@@ -67,7 +67,7 @@ class Entry:
 
     @forward_model.setter
     def forward_model(self, value):
-        self._forward_model = value
+        self._forward_model = Path(value)
 
     # Getter and setter for 'stim'
     @property
