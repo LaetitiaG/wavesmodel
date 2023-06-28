@@ -149,15 +149,15 @@ def compare_meas_simu(entry, ev_proj):
                 # loop across rows
                 for r in range(len(inds)):
                     for c in range(len(inds)):  # loop across column
-                        cov_ch[i, r, c] = np.mean(ampls_ch[r] / ampls_ch[c])  # average across time
+                        cov_ch[i, r, c] = np.mean(np.log(ampls_ch[r] / ampls_ch[c]))  # average across time
 
-        cov_amp.append(np.log(cov_ch))
+        cov_amp.append(cov_ch)
 
         # Correlate measured vs predicted matrix
         msk_tri = np.triu(np.ones((len(inds), len(inds)), bool), k=1)  # zero the diagonal and all values below
         meas = cov_ch[0][msk_tri]
         simu = cov_ch[1][msk_tri]
-        R2, pval = scistats.spearmanr(np.log(meas), np.log(simu))
+        R2, pval = scistats.spearmanr(meas, simu)
         zscores[ch, 0] = 0.5 * np.log((1 + R2) / (1 - R2))  # fisher Z (ok for spearman when N>10)
         R2_all[ch, 0] = R2
         pval_all[ch, 0] = pval
