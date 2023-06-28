@@ -3,8 +3,8 @@ import mne
 import nibabel.freesurfer.mghformat as mgh
 import numpy as np
 from copy import deepcopy
-
 from toolbox import utils
+from numba import jit, float64
 
 ## Constant to acces lh and rh in tuple
 LEFT_HEMI = 0
@@ -75,7 +75,8 @@ class Simulation:
                  simulation_params,
                  screen_params,
                  stim,
-                 c_space):
+                 c_space,
+                 verbose=False):
         self.measured = measured
         self.freesurfer = freesurfer
         self.forward_model = forward_model
@@ -83,9 +84,10 @@ class Simulation:
         self.screen_params = screen_params
         self.stim = stim
         self.c_space = c_space
+        self.verbose = verbose
 
         # Time Parameters for the source signal
-        info = mne.io.read_info(self.measured)
+        info = mne.io.read_info(self.measured, verbose=self.verbose)
         self.tstep = 1 / info['sfreq']
         self.times = np.arange(2 / self.tstep + 1) * self.tstep
 
@@ -144,7 +146,7 @@ class Simulation:
                 - e_cort (np.ndarray): A 2D array of cortical distances.
         """
         # Check if any of the screen_config values are invalid
-        if any(value <= 0 for value in self.screen_params):
+        if any([value <= 0 for value in self.screen_params]):
             raise ValueError('Invalid input data')
 
         width_screen_pix = self.screen_params.width
@@ -195,16 +197,19 @@ class Simulation:
         """
         params = self.screen_params
         if self.stim == TRAV_OUT:
+            @jit(nopython=True)
             def func(t):
                 return params.amplitude * \
                        np.sin(2 * np.pi * params.freq_spacial *
                               e_cort - 2 * np.pi * params.freq_temp * t + params.phase_offset)
         elif self.stim == STANDING:
+            @jit(nopython=True)
             def func(t):
                 return params.amplitude * \
                        np.sin(2 * np.pi * params.freq_spacial * e_cort + params.phase_offset) * \
                        np.cos(2 * np.pi * params.freq_temp * t)
         elif self.stim == TRAV_IN:
+            @jit(nopython=True)
             def func(t):
                 return params.amplitude * \
                        np.sin(2 * np.pi * params.freq_spacial *
@@ -225,18 +230,19 @@ class Simulation:
             Used with apply_tuple, avoiding to have to handle tuple inside
         """
 
+        @jit(float64[:, :](float64[:]), nopython=True)
         def __create_wave_label_single_hemi(eccen_label_hemi):
             """
             Returns 1 hemisphere of wave label
             To be used with apply_tuple
             """
-            wave_label_h = np.zeros((len(eccen_label_hemi), len(self.times)))
+            wave_label_h = np.zeros((len(eccen_label_hemi), len(self.times)), dtype=np.float64)
             max_eccen = np.max(eccen_screen)
             for ind_l, l in enumerate(eccen_label_hemi):
-                if np.max(l) > max_eccen:
+                if l > max_eccen:
                     continue
                 imin = np.argmin(np.abs(eccen_screen - eccen_label_hemi[ind_l]))
-                ind_stim = np.unravel_index(imin, np.shape(eccen_screen))
+                ind_stim = (imin // eccen_screen.shape[1], imin % eccen_screen.shape[1])  # np.unravel_index(imin, np.shape(eccen_screen)) Not supported by numba
                 wave_label_h[ind_l] = sin_inducer[:, ind_stim[0], ind_stim[1]]
 
             return wave_label_h
@@ -260,15 +266,15 @@ class Simulation:
         else:  # handle wrong c_space
             return wave_label
 
-    def __create_stc(self):
+    def __create_stc(self, verbose=False):
         # Load forward model
-        fwd = mne.read_forward_solution(self.forward_model)
+        fwd = mne.read_forward_solution(self.forward_model, verbose=verbose)
         src = fwd['src']  # source space
 
         # Create empty stc
         # need to indicate the directory of the freesurfer files for given subject
         labels = mne.read_labels_from_annot(self.freesurfer.name, subjects_dir=self.freesurfer.parent,
-                                            parc='aparc.a2009s')  # aparc.DKTatlas
+                                            parc='aparc.a2009s', verbose=verbose)  # aparc.DKTatlas
         n_labels = len(labels)
         signal = np.zeros((n_labels, len(self.times)))
         return mne.simulation.simulate_stc(src, labels, signal, self.times[0], self.tstep,
@@ -304,7 +310,9 @@ class Simulation:
 
         return tmp
 
-    def generate_simulation(self):
+    def generate_simulation(self, verbose=None):
+        if verbose is None:
+            verbose = self.verbose
         # à revoir
         labels = self.__load_retino()
         inds_label, angle_label, eccen_label = labels
@@ -316,7 +324,7 @@ class Simulation:
         # return wave_label depending on c_space (full, quad or fov)
         wave_label = self.__create_wave_stims(stim_inducer, eccen_screen, angle_label, eccen_label)
 
-        stc_gen = self.__create_stc()
+        stc_gen = self.__create_stc(verbose=verbose)
 
         # only wave_label (which depends on c_space)
         stc = self.__fill_stc(stc_gen, *labels, wave_label)
