@@ -269,12 +269,15 @@ def compare_meas_simu_oneChType(entry, ev_proj, ch_type, verbose=False):
             df = len(meas) - 2
             tscore = R2 * np.sqrt(df) / np.sqrt(1 - R2 * R2)  # Kanji 2006
             pval = scistats.t.sf(tscore, df) 
-            SSR[i] = np.sum(np.abs((meas-simu)**2))
+            #SSR[i] = np.sum(np.abs((meas-simu)**2)) # equivalent to np.sum(diff.real**2 + diff.imag**2)
                           
         # Store statistics    
         R2_all[i] = R2 
         pval_all[i] = pval  
         
+    # Compute the SSR for complex values as the sum of SSR for phase and amp
+    SSR[2] = SSR[0] + SSR[1]
+    
     return phases, ampls, times, evoked.info, zscores, R2_all, pval_all, matrices_meas, matrices_simu, SSR
 
 
