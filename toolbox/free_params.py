@@ -14,8 +14,16 @@ Created on Mon Jun 19 14:39:34 2023
 
 from scipy.optimize import curve_fit, least_squares
 import numpy as np
-import matplotlib.pyplot as plt
-import scipy.stats
+from toolbox import configIO
+from toolbox.simulation import generate_simulation
+from toolbox.projection import project_wave
+from toolbox.comparison import compare_meas_simu, create_RSA_matrices, compare_meas_simu_oneChType
+import time
+from numba import jit
+import os
+import pickle
+from joblib import Parallel, delayed
+
 
 subject = 'OF4IP5'
 session = 'session2'
@@ -33,11 +41,10 @@ sensorspath = wdir + 'data_MEEG\\sensors\\'
 
 ###### FUNCTIONS ##############################################################
 
-
     
-def func(p, entry, ch_type):
+def func(p, entry, verbose = False):
     ''' Free parameter p = temporal frequency'''
-
+    
     start_time = time.time()
     freq_temp = p
     freq_spacial = 0.05
@@ -46,42 +53,146 @@ def func(p, entry, ch_type):
     entry.set_simulation_params([freq_temp, freq_spacial, amplitude, phase_offset])
        
     stc = generate_simulation(entry)
-    proj = project_wave(entry, stc) 
-    compare = compare_meas_simu_oneChType(entry, proj, ch_type)
+    proj = project_wave(entry, stc, verbose) 
+    compare = compare_meas_simu(entry, proj, verbose)
     
-    # select residuals for one channel type and the complex comparison
-    residuals = compare[-1][2]
+    # select sum of squared residuals for all channel types and the complex comparison
+    SSR = compare[-1] # compare[-1][:,2]
+    R = compare[5] # compare[5][:,2]
     print("--- %s seconds ---" % (time.time() - start_time))
     
-    return residuals 
+    return SSR, R  
 
 
-def cost_fun(p, entry, ch_type):
-    residuals = func(p, entry, ch_type)
+def fit_tempFreq(subject, condition):
+    '''
     
-    return np.sum(residuals**2)
+
+    Parameters
+    ----------
+    subject : str
+        DESCRIPTION.
+    condition : str
+        'TRAV_OUT', 'TRAV_IN'
+
+    Returns
+    -------
+    best_parameter : float
+        DESCRIPTION.
+
+    '''
+    start_time1 = time.time()
+    wdir = "C:\\Users\\laeti\\Data\\wave_model\\"
+    entry_file = wdir + "scripts_python\\WAVES\\test\\entry\\entry.ini"
+    entry_list = configIO.read_entry_config(entry_file)
+    entry = entry_list[0]
+    
+    # # Change condition
+    # entry.stim = condition
+    # if condition == 'TRAV_OUT':
+    #     cond = 'trav_out'
+    # elif condition == 'TRAV_IN':
+    #     cond = 'trav_in'
+    
+    # # Change subject
+    # entry.measured = wdir + 'data_MEEG\\sensors\\' + subject + '_' + cond +'-ave.fif'
+    # entry.freesurfer = wdir + 'data_MRI\\preproc\\freesurfer\\' + subject
+    # entry.fwd_model = wdir + 'data_MEEG\\preproc\\'+ subject+'\\forwardmodel\\' + subject + '_session2_ico5-fwd.fif'
+    
+    # Initialize
+    ch_types = ['mag', 'grad', 'eeg']
+    parameters_to_test = np.arange(2., 30., 1) # freqs  np.arange(2., 50., 0.5)
+    sumsq = np.zeros((len(ch_types), 3,len(parameters_to_test)))
+    R_all = np.zeros((len(ch_types), 3,len(parameters_to_test)))
+    best_parameter = [None,None,None]
+    
+    # Iterate over the parameters and store sum of sq
+    for p,parameter in enumerate(parameters_to_test):
+        # Calculate the objective function for the current parameter
+        res = func(parameter, entry)
+        sumsq[:,:,p] = res[0]
+        R_all[:,:,p] = res[1]
+        print('Parameter tested: {} Hz'.format(parameter))
+        # Find the best-fit parameter for each channel type
+    for c in range(len(ch_types)):
+        best_parameter[c] = parameters_to_test[np.argmin((sumsq[c]))]
+    print("--- %s seconds ---" % (time.time() - start_time1))
+   
+    
+    return best_parameter
 
 
 ############ for parameters where we know the parameters space (temporal frequency) ############
-entry_file = "C:\\Users\\laeti\\Data\\wave_model\\scripts_python\\WAVES\\test\\entry\\entry.ini"
-entry_list = configIO.read_entry_config(entry_file)
-entry = entry_list[0]
 
-parameters_to_test = np.arange(2., 50., 0.5) # freqs
-best_cost_value = np.inf
-best_parameter = None
+# test for one participant
+start_time = time.time()
+subject = 'OF4IP5'
+condition='TRAV_OUT'
+bestP = fit_tempFreq(subject, condition)
+print("--- %s seconds ---" % (time.time() - start_time))
 
-# Iterate over the parameters and find the best-fit parameter
-for parameter in parameters_to_test:
-    # Calculate the objective function for the current parameter
-    cost_value = cost_fun(parameter, entry, ch_type)
+# test with joblib
+subjects_ses2 = ['EWTO6I', 'QNP39U', 'OF4IP5', 'XZJ7KI', '03TPZ5','UEGW36',\
+            'S1VW75', 'QFLDFC', 'JRRWDT', 'Q95PQG', '90WCLR', 'TX0JPL',\
+            'U2XPZV', '575ZC9', 'D1AQHG','8KYLY7', 'O3YE19', 'DOYJLH', 'NOT7EZ']
     
-    # Update the best parameter if the current objective function value is better
-    if cost_value < best_cost_value:
-        best_cost_value = cost_value
-        best_parameter = parameter
-    print('Tested parameter: {} - best parameter: {}'.format(parameter,best_parameter))
+condition = 'TRAV_OUT' # 'TRAV_OUT' or 'TRAV_IN'
 
+# Loop across participants
+best_param_allSubj = Parallel(n_jobs=2)(
+    delayed(fit_tempFreq)(subject, condition)
+    for subject in subjects_ses2)
+
+# Save fitting parameters results
+fit_result = {"best_fit": best_param_allSubj,
+               "param_name": 'tempFreq',
+               "condition": condition
+               }
+fname = "fit_param_tempFreq_session2_{}.pkl".format(condition)
+a_file = open(os.path.join(wdir, 'results', fname), "wb")
+pickle.dump(fit_result, a_file)
+a_file.close()         
+
+mat_meas = compare[7]['mag'][2]
+mat_simu = compare[8]['mag'][2] 
+diff = mat_meas-mat_simu
+np.sum(np.abs(diff**2))
+np.sum((diff.real**2 + diff.imag**2)**2)
+np.sum(diff.real**2 + diff.imag**2) # this is equal to np.abs(diff)
+
+
+import matplotlib.pyplot as plt
+plt.figure()
+plt.subplot(211)
+plt.plot(parameters_to_test, sumsq[0,0])
+plt.ylabel('SSR - amp')
+plt.subplot(212)
+plt.plot(parameters_to_test, R_all[0,0])
+plt.ylabel('R')
+plt.xlabel('Temp freq')
+plt.figure()
+plt.subplot(211)
+plt.plot(parameters_to_test, sumsq[0,1])
+plt.ylabel('SSR - phase')
+plt.subplot(212)
+plt.plot(parameters_to_test, R_all[0,1])
+plt.ylabel('R')
+plt.xlabel('Temp freq')
+plt.figure()
+plt.subplot(211)
+plt.plot(parameters_to_test, sumsq[0,2])
+plt.ylabel('SSR - cplx')
+plt.subplot(212)
+plt.plot(parameters_to_test, R_all[0,2])
+plt.ylabel('R')
+plt.xlabel('Temp freq')
+
+
+
+'''
+start_time = time.time()
+wave_label = create_wave_stims(c_space, times, stim_inducer, eccen_screen, angle_label, eccen_label)
+print("--- %s seconds ---" % (time.time() - start_time))
 
 ############ for parameters where we don't know the parameters space ############
 entry_file = "C:\\Users\\laeti\\Data\\wave_model\\scripts_python\\WAVES\\test\\entry\\entry.ini"
@@ -133,36 +244,4 @@ entry = utils.Entry.load_entry(entry_dic)
     simulation_config_section='0cfg', 
     screen_config_section='cfg1',
 
-
-# xdata = xdata(subject, session, cond, sensorspath, epoch_type, ep_name)
-
-xdata = np.zeros(26284,)
-ydata = ydata_cplx(subject, session, comp, cond, sensorspath)
-
-# phases = f_phase(xdata,p)
-
-popt, pcov = curve_fit(f_phase, xdata, ydata) # popt = 0.999975 pcov = 1.12099937e-10
-
-# curve_fit takes as inputs
-# - f so that f(xdata,p1) = ydatafit
-# - xdata -> no need for them
-# - ydata -> vector of measured data
-# return p1 optimized so that f(xdata,p1) is fitted to ydata
-
-# On amplitude
-ydata = ydata_ampl(subject, session, comp, cond, sensorspath) # measured
-# note ydata is sometimes equal to 0, why? full matrix considered (after taking log) CORRECTED
-xdata = np.zeros(np.shape(ydata))
-#ampls = f_ampl(xdata,p)
-
-popt, pcov = curve_fit(f_ampl, xdata, ydata) # popt = 1. pcov = [inf]
-
-# plot fitted data
-ydata_fit = f_ampl(xdata, popt)
-ydata_fixed = f_ampl(xdata, 5) # fixed temporal frequency
-
-R2_fixed, pval_fixed = scipy.stats.spearmanr(ydata, ydata_fixed)
-R2_fit, pval_fit = scipy.stats.spearmanr(ydata, ydata_fit)
-
-plt.plot(ydata, ydata_fit, 'o')
-plt.plot(ydata_fixed, ydata_fit, 'o')
+'''
