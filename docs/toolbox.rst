@@ -12,10 +12,11 @@ Subpackages
 Submodules
 ----------
 
-toolbox.Errors module
----------------------
 
-.. automodule:: toolbox.Errors
+toolbox.comparison module
+-------------------------
+
+.. automodule:: toolbox.comparison
    :members:
    :undoc-members:
    :show-inheritance:
@@ -36,10 +37,18 @@ toolbox.configIO module
    :undoc-members:
    :show-inheritance:
 
-toolbox.main module
--------------------
+toolbox.plot\_comparison module
+-------------------------------
 
-.. automodule:: toolbox.main
+.. automodule:: toolbox.plot_comparison
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+toolbox.plot\_projection module
+-------------------------------
+
+.. automodule:: toolbox.plot_projection
    :members:
    :undoc-members:
    :show-inheritance:

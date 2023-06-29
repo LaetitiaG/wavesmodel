@@ -4,8 +4,9 @@ from pathlib import Path
 import os
 from toolbox.GUI import input
 from toolbox import configIO
-from toolbox.simulation import generate_simulation
+from toolbox.simulation import create_sim_from_entry
 from toolbox.projection import project_wave
+from toolbox.plot_projection import plot_projection
 from toolbox.comparison import compare_meas_simu
 
 
@@ -91,6 +92,15 @@ def __save_output_to_file(data):
             file.write('\n')
 
 
+def __create_report(entry, simulation=False, projection=False, compare=False, evoked_gen=None):
+    report_p = Path('./output/report')
+    if not report_p.exists():
+        os.makedirs(report_p)
+    if projection:
+        projection_path = report_p / 'projection.html'
+        plot_projection(entry, evoked_gen, projection_path)
+
+
 def run_pipeline(entry_list):
     """Runs the pipeline for each entry in the list.
 
@@ -101,10 +111,12 @@ def run_pipeline(entry_list):
             None
     """
     for entry in entry_list:
-        stc = generate_simulation(entry)
+        sim = create_sim_from_entry(entry)
+        stc = sim.generate_simulation()
         proj = project_wave(entry, stc)
         compare = compare_meas_simu(entry, proj)
-        print(compare)
+        __save_output_to_file(compare)
+        __create_report(entry, projection=True, evoked_gen=proj)
 
 
 def main(argv=None):

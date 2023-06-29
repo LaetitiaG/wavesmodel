@@ -2,6 +2,7 @@ import configparser
 from pathlib import Path
 import unittest
 import toolbox.configIO as configIO
+import toolbox.entry
 from toolbox.configIO import read_entry_config
 from toolbox import utils
 import os
@@ -114,7 +115,7 @@ class TestReadEntryConfig(unittest.TestCase):
         # test if each object in the returned list is of type `utils.Entry`
         result = read_entry_config(self.config_file)
         for obj in result:
-            self.assertIsInstance(obj, utils.Entry)
+            self.assertIsInstance(obj, toolbox.entry.Entry)
 
     def test_load_entry_function(self):
         result = read_entry_config(self.config_file)
