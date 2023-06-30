@@ -43,6 +43,12 @@ class Entry:
         self._simulation_params = simulation_params
         self._screen_params = screen_params
 
+    def __repr__(self):
+        attributes = []
+        for attr, value in self.__dict__.items():
+            attributes.append(f"{attr}={value!r}")
+        return "Entry(\n  " + ",\n  ".join(attributes) + "\n)"   
+    
     # Getter and setter for 'measured'
     @property
     def measured(self):
