@@ -7,7 +7,7 @@ SIM_CONF = CONFIG_PATH / 'simulation.ini'
 SCREEN_CONF = CONFIG_PATH / 'screen.ini'
 
 simulation_params = namedtuple("simulation_params",
-                               ["freq_temp", "freq_spacial", "amplitude", "phase_offset"])
+                               ["freq_temp", "freq_spatial", "amplitude", "phase_offset"])
 
 # Pass tuple to each mri type. Must be in the same hemisphere order: (left, right)
 mri_paths = namedtuple("mri_paths", ["varea", "angle", "eccen"])
@@ -22,12 +22,13 @@ screen_params = namedtuple("screen_params",
 
 def load_param_from_config(dic, config_obj, section, param_class):
     """
-    To allow the 'eval' to work with more than numbers, you have to define the text here
-    for example:
-    `pi = np.pi`
-    defines the word 'pi' in the eval to be used as np.pi.
+    Simulation parameters used in the traveling/standing waves equations:
+        freq_temp: temporal frequency
+        freq_spatial: spatial frequency
+        amplitude: amplitude 
+        phase_offset: initial phase
     """
-    pi = np.pi
+
     if config_obj and config_obj.has_section(section):
         return param_class(*map(eval, config_obj[section].values()))
     else:
