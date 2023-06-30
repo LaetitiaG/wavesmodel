@@ -186,7 +186,7 @@ class Simulation:
             times (ndarray): An array of time points.
             params: A named tuple with the following fields:
                 - amplitude (float): The amplitude of the stimulus.
-                - freq_spacial (float): The spatial frequency of the stimulus.
+                - freq_spatial (float): The spatial frequency of the stimulus.
                 - freq_temp (float): The temporal frequency of the stimulus.
                 - phase_offset (float): The phase offset of the stimulus.
             e_cort (ndarray): An array of cortical distances.
@@ -195,24 +195,24 @@ class Simulation:
         Returns:
             An ndarray containing the screen luminance values for each time point and pixel.
         """
-        params = self.screen_params
+        params = self.simulation_params
         if self.stim == TRAV_OUT:
             @jit(nopython=True)
             def func(t):
                 return params.amplitude * \
-                       np.sin(2 * np.pi * params.freq_spacial *
+                       np.sin(2 * np.pi * params.freq_spatial *
                               e_cort - 2 * np.pi * params.freq_temp * t + params.phase_offset)
         elif self.stim == STANDING:
             @jit(nopython=True)
             def func(t):
                 return params.amplitude * \
-                       np.sin(2 * np.pi * params.freq_spacial * e_cort + params.phase_offset) * \
+                       np.sin(2 * np.pi * params.freq_spatial * e_cort + params.phase_offset) * \
                        np.cos(2 * np.pi * params.freq_temp * t)
         elif self.stim == TRAV_IN:
             @jit(nopython=True)
             def func(t):
                 return params.amplitude * \
-                       np.sin(2 * np.pi * params.freq_spacial *
+                       np.sin(2 * np.pi * params.freq_spatial *
                               e_cort + 2 * np.pi * params.freq_temp * t + params.phase_offset)
         else:
             raise ValueError('Incorrect stimulation value')  # needs to be InputStimError
