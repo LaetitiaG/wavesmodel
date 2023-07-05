@@ -186,7 +186,15 @@ def create_RSA_matrices(entry, evoked, ch_type, verbose=False):
     
     return phases, ampls, times,matrices    
 
-def compare_meas_simu_oneChType(entry, ev_proj, ch_type, verbose=False):
+def read_measured_evoked(entry, verbose=False):
+    
+    # Read measured data evoked
+    evoked = mne.read_evokeds(entry.measured, verbose=verbose)[0]
+    evoked.crop(tmin=0, tmax=2)
+
+    return evoked    
+
+def compare_meas_simu_oneChType(entry, ev_proj, ev_meas, ch_type, verbose=False):
     '''
     Compare the relationships between pairs of sensors in terms of amplitude, phase
     or complex values between measured and simulated signal for a given channel type.
@@ -232,12 +240,8 @@ def compare_meas_simu_oneChType(entry, ev_proj, ch_type, verbose=False):
     zscores = np.zeros((3));     R2_all = np.zeros((3))
     pval_all = np.zeros((3));
 
-    # Read measured data evoked
-    evoked = mne.read_evokeds(entry.measured, verbose=verbose)[0]
-    evoked.crop(tmin=0, tmax=2)
-
     # Calculate RSA matrices
-    phases_meas, ampls_meas, times, matrices_meas = create_RSA_matrices(entry, evoked, ch_type, verbose)
+    phases_meas, ampls_meas, times, matrices_meas = create_RSA_matrices(entry, ev_meas, ch_type, verbose)
     phases_simu, ampls_simu, times, matrices_simu = create_RSA_matrices(entry, ev_proj, ch_type, verbose)
     phases = np.stack((phases_meas, phases_simu)) # meas/simu
     ampls = np.stack((ampls_meas, ampls_simu))
