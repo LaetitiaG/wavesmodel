@@ -90,7 +90,13 @@ class Simulation:
         info = mne.io.read_info(self.measured, verbose=self.verbose)
         self.tstep = 1 / info['sfreq']
         self.times = np.arange(2 / self.tstep + 1) * self.tstep
-
+        
+    def __repr__(self):
+        attributes = []
+        for attr, value in self.__dict__.items():
+            attributes.append(f"{attr}={value!r}")
+        return "Sim(\n  " + ",\n  ".join(attributes) + "\n)" 
+    
     def __load_retino(self):
         """
         Load retinotopy, visual phase and eccentricity for labels of both hemis
@@ -230,13 +236,14 @@ class Simulation:
             Used with apply_tuple, avoiding to have to handle tuple inside
         """
 
+        times = self.times
         @jit(float64[:, :](float64[:]), nopython=True)
         def __create_wave_label_single_hemi(eccen_label_hemi):
             """
             Returns 1 hemisphere of wave label
             To be used with apply_tuple
             """
-            wave_label_h = np.zeros((len(eccen_label_hemi), len(self.times)), dtype=np.float64)
+            wave_label_h = np.zeros((len(eccen_label_hemi), len(times)), dtype=np.float64)
             max_eccen = np.max(eccen_screen)
             for ind_l, l in enumerate(eccen_label_hemi):
                 if l > max_eccen:
@@ -277,7 +284,7 @@ class Simulation:
                                             parc='aparc.a2009s', verbose=verbose)  # aparc.DKTatlas
         n_labels = len(labels)
         signal = np.zeros((n_labels, len(self.times)))
-        return mne.simulation.simulate_stc(src, labels, signal, self.times[0], self.tstep,
+        return mne.simulation.simulate_stc(src, labels, signal, self.times[0], self.tstep, allow_overlap = True,
                                            value_fun=lambda x: x)  # labels or label_sel
 
     def __fill_stc(self, stc_gen, inds_label, angle_label, eccen_label, wave_label):

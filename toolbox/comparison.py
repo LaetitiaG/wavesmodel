@@ -257,7 +257,7 @@ def compare_meas_simu_oneChType(entry, ev_proj, ch_type, verbose=False):
         if data == 'amplitude':
             R2, pval = scistats.spearmanr(meas, simu)
             zscores[i] = 0.5 * np.log((1 + R2) / (1 - R2))  # fisher Z (ok for spearman when N>10)
-            SSR[i] = np.sum((meas-simu)**2)    
+            SSR[i] = np.real(np.sum((meas-simu)**2))    
         elif data == 'phase':
             R2, zscore, pval = circular_corr(meas, simu)
             zscores[i] = zscore

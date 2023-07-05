@@ -15,8 +15,7 @@ Created on Mon Jun 19 14:39:34 2023
 from scipy.optimize import curve_fit, least_squares
 import numpy as np
 
-from toolbox import configIO
-from toolbox.simulation import generate_simulation
+from toolbox.simulation import create_sim_from_entry
 from toolbox.projection import project_wave
 from toolbox.comparison import compare_meas_simu, create_RSA_matrices, compare_meas_simu_oneChType
 import time
@@ -26,9 +25,7 @@ import pickle
 from joblib import Parallel, delayed
 import matplotlib.pyplot as plt
 import scipy.stats
-from toolbox.configIO import read_entry_config
-
-
+from toolbox.entry import Entry
 
 subject = 'OF4IP5'
 session = 'session2'
@@ -41,22 +38,22 @@ epoch_type = "SSVEP" # SSVEP 5Hzfilt
 ep_name = {'SSVEP': '-', '5Hzfilt': '_5Hzfilt-'}
 
 # my path
-wdir = 'C:\\Users\\laeti\\Data\\wave_model\\'
-sensorspath = wdir + 'data_MEEG\\sensors\\' 
+wdir = 'C:/Users/laeti/Data/wave_model/'
+sensorspath = wdir + 'data_MEEG/sensors/' 
 
 ###### FUNCTIONS ##############################################################
 
     
-def func(p, entry, verbose = False):
+def func(parameter, entry, verbose = False):
     ''' Free parameter p = temporal frequency'''
     
     start_time = time.time()
-    freq_temp = p
-    freq_spacial = 0.05
+    freq_temp = parameter
+    freq_spatial = 0.05
     amplitude = 1e-08
     phase_offset = 1.5707963267948966
     
-    entry.simulation_params = [freq_temp, freq_spacial, amplitude, phase_offset]
+    entry.simulation_params = [freq_temp, freq_spatial, amplitude, phase_offset]
     sim = create_sim_from_entry(entry)
     stc = sim.generate_simulation()
     proj = project_wave(entry, stc, verbose) 
@@ -70,7 +67,7 @@ def func(p, entry, verbose = False):
     return SSR, R  
 
 
-def fit_tempFreq(subject, condition):
+def fit_tempFreq(entry, subject, condition, parameters_to_test):
     '''
     
 
@@ -87,27 +84,22 @@ def fit_tempFreq(subject, condition):
         DESCRIPTION.
 
     '''
-    start_time1 = time.time()
-    wdir = "C:\\Users\\laeti\\Data\\wave_model\\"
-    entry_file = wdir + "scripts_python\\WAVES\\test\\entry\\entry.ini"
-    entry_list = configIO.read_entry_config(entry_file)
-    entry = entry_list[0]
+        
+    # Change condition
+    entry.stim = condition
+    if condition == 'TRAV_OUT':
+        cond = 'trav_out'
+    elif condition == 'TRAV_IN':
+        cond = 'trav_in'
     
-    # # Change condition
-    # entry.stim = condition
-    # if condition == 'TRAV_OUT':
-    #     cond = 'trav_out'
-    # elif condition == 'TRAV_IN':
-    #     cond = 'trav_in'
-    
-    # # Change subject
-    # entry.measured = wdir + 'data_MEEG\\sensors\\' + subject + '_' + cond +'-ave.fif'
-    # entry.freesurfer = wdir + 'data_MRI\\preproc\\freesurfer\\' + subject
-    # entry.fwd_model = wdir + 'data_MEEG\\preproc\\'+ subject+'\\forwardmodel\\' + subject + '_session2_ico5-fwd.fif'
+    # Change subject
+    #entry.measured = wdir + 'data_MEEG/sensors/' + subject + '_' + cond +'-ave.fif'
+    entry.measured = wdir + 'data_MEEG/simulation/' + subject + '_proj_V1_session2_' + cond +'-ave.fif' # test
+    entry.freesurfer = wdir + 'data_MRI/preproc/freesurfer/' + subject
+    entry.forward_model = wdir + 'data_MEEG/preproc/'+ subject+'/forwardmodel/' + subject + '_session2_ico5-fwd.fif'
     
     # Initialize
     ch_types = ['mag', 'grad', 'eeg']
-    parameters_to_test = np.arange(2., 30., 1) # freqs  np.arange(2., 50., 0.5)
     sumsq = np.zeros((len(ch_types), 3,len(parameters_to_test)))
     R_all = np.zeros((len(ch_types), 3,len(parameters_to_test)))
     best_parameter = [None,None,None]
@@ -122,30 +114,40 @@ def fit_tempFreq(subject, condition):
         # Find the best-fit parameter for each channel type
     for c in range(len(ch_types)):
         best_parameter[c] = parameters_to_test[np.argmin((sumsq[c]))]
-    print("--- %s seconds ---" % (time.time() - start_time1))
-   
     
-    return best_parameter
+    return best_parameter, sumsq, R_all
 
 ############ for parameters where we know the parameters space (temporal frequency) ############
 
 # test for one participant
 start_time = time.time()
-subject = 'OF4IP5'
+subject = 'JRRWDT'
 condition='TRAV_OUT'
-bestP = fit_tempFreq(subject, condition)
+parameters_to_test = np.arange(2., 7., 3)
+bestP = fit_tempFreq(entry, subject, condition, parameters_to_test)
 print("--- %s seconds ---" % (time.time() - start_time))
 
 # test with joblib
 subjects_ses2 = ['EWTO6I', 'QNP39U', 'OF4IP5', 'XZJ7KI', '03TPZ5','UEGW36',\
             'S1VW75', 'QFLDFC', 'JRRWDT', 'Q95PQG', '90WCLR', 'TX0JPL',\
             'U2XPZV', '575ZC9', 'D1AQHG','8KYLY7', 'O3YE19', 'DOYJLH', 'NOT7EZ']
+subjects_ses2 = ['EWTO6I', 'QNP39U']
     
 condition = 'TRAV_OUT' # 'TRAV_OUT' or 'TRAV_IN'
+parameters_to_test = np.arange(2., 15., 3) # freqs  np.arange(2., 50., 0.5)
+
+# Create entry
+entry = Entry(c_space='full')
+width = 1920
+height = 1080
+distancefrom = 78
+heightcm = 44.2
+entry.screen_params = [width,height,distancefrom,heightcm]
 
 # Loop across participants
-best_param_allSubj = Parallel(n_jobs=2)(
-    delayed(fit_tempFreq)(subject, condition)
+
+res_allSubj = Parallel(n_jobs=4)(
+    delayed(fit_tempFreq)(entry, subject, condition, parameters_to_test)
     for subject in subjects_ses2)
 
 # Save fitting parameters results
@@ -158,6 +160,9 @@ a_file = open(os.path.join(wdir, 'results', fname), "wb")
 pickle.dump(fit_result, a_file)
 a_file.close()         
 
+
+'''
+############# plot 
 mat_meas = compare[7]['mag'][2]
 mat_simu = compare[8]['mag'][2] 
 diff = mat_meas-mat_simu
@@ -194,7 +199,6 @@ plt.xlabel('Temp freq')
 
 
 
-'''
 start_time = time.time()
 wave_label = create_wave_stims(c_space, times, stim_inducer, eccen_screen, angle_label, eccen_label)
 print("--- %s seconds ---" % (time.time() - start_time))
@@ -231,7 +235,7 @@ entry = entry_list[0]
 
 
 
-simulation_params = {'freq_temp':5, 'freq_spacial':0.05, 'amplitude':1e-08, 'phase_offset':1.5707963267948966}
+simulation_params = {'freq_temp':5, 'freq_spatial':0.05, 'amplitude':1e-08, 'phase_offset':1.5707963267948966}
 screen_params = {'width':1920, 'height':1080, 'distanceFrom':78, 'heightCM':44.2}
 
 entry_dic = {

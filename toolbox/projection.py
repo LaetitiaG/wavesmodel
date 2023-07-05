@@ -4,7 +4,7 @@ import numpy as np
 
 def project_wave(entry, stc_gen, verbose=False):
     measured = entry.measured
-    forward = entry.fwd_model
+    forward = entry.forward_model
 
     info = mne.io.read_info(measured, verbose=verbose)
     fwd = mne.read_forward_solution(forward, verbose=verbose)
