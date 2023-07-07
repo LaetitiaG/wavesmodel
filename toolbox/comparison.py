@@ -99,13 +99,12 @@ def create_RSA_matrices(entry, evoked, ch_type, verbose=False):
     fstim = entry.simulation_params.freq_temp
     freqs = np.arange(2., 50., 0.5)
     n_cycles = freqs / 2.
-    choose_ch = {'mag':['mag', False], 'grad': ['grad', False], 'eeg': [False, True]}
     tmin_crop = 0.5    
     sf = evoked.info['sfreq']
     
     # Select only channels of interest
     ev_ch = evoked.copy()
-    ev_ch.pick_types(meg = choose_ch[ch_type][0], eeg = choose_ch[ch_type][1])
+    ev_ch.pick(ch_type)
     if ch_type == 'grad':
         Nchan = int(len(ev_ch.data)/2)
     else:
@@ -282,10 +281,10 @@ def compare_meas_simu_oneChType(entry, ev_proj, ev_meas, ch_type, verbose=False)
     # Compute the SSR for complex values as the sum of SSR for phase and amp
     SSR[2] = SSR[0] + SSR[1]
     
-    return phases, ampls, times, evoked.info, zscores, R2_all, pval_all, matrices_meas, matrices_simu, SSR
+    return phases, ampls, times, zscores, R2_all, pval_all, matrices_meas, matrices_simu, SSR
 
 
-def compare_meas_simu(entry, ev_proj, verbose = False):
+def compare_meas_simu(entry, ev_proj, ev_meas, verbose = False):
     '''
     Compare the relationships between pairs of sensors in terms of amplitude, phase
     or complex values between measured and simulated signal.
@@ -332,9 +331,10 @@ def compare_meas_simu(entry, ev_proj, verbose = False):
     SSR = np.zeros((len(ch_types), 3))
     matrices_meas = {} ; matrices_simu = {}
     phases = {}; ampls= {}
-
+    info = ev_meas.info
+    
     for ch, ch_type in enumerate(ch_types):
-        phases[ch_type], ampls[ch_type], times, info, zscores[ch], R2_all[ch], pval_all[ch], mat_meas, mat_simu, SSR[ch] = compare_meas_simu_oneChType(entry, ev_proj, ch_type, verbose)
+        phases[ch_type], ampls[ch_type], times, zscores[ch], R2_all[ch], pval_all[ch], mat_meas, mat_simu, SSR[ch] = compare_meas_simu_oneChType(entry, ev_proj, ev_meas, ch_type, verbose)
         matrices_meas[ch_type] = mat_meas
         matrices_simu[ch_type] = mat_simu            
         

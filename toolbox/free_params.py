@@ -17,7 +17,7 @@ import numpy as np
 
 from toolbox.simulation import create_sim_from_entry
 from toolbox.projection import project_wave
-from toolbox.comparison import compare_meas_simu, create_RSA_matrices, compare_meas_simu_oneChType
+from toolbox.comparison import read_measured_evoked, compare_meas_simu, create_RSA_matrices, compare_meas_simu_oneChType
 import time
 from numba import jit
 import os
@@ -56,7 +56,10 @@ def func(parameter, entry, verbose = False):
     entry.simulation_params = [freq_temp, freq_spatial, amplitude, phase_offset]
     sim = create_sim_from_entry(entry)
     stc = sim.generate_simulation()
-    proj = project_wave(entry, stc, verbose) 
+    ev_proj = project_wave(entry, stc, verbose) 
+    ev_meas = read_measured_evoked(entry, verbose)
+    mat_simu = create_RSA_matrices(entry, ev_proj, ch_type, verbose)
+    mat_meas = create_RSA_matrices(entry, meas, ch_type, verbose) 
     compare = compare_meas_simu(entry, proj, verbose)
     
     # select sum of squared residuals for all channel types and the complex comparison
@@ -110,10 +113,24 @@ def fit_tempFreq(entry, subject, condition, parameters_to_test):
         res = func(parameter, entry)
         sumsq[:,:,p] = res[0]
         R_all[:,:,p] = res[1]
-        print('Parameter tested: {} Hz'.format(parameter))
+        #print('Parameter tested: {} Hz'.format(parameter))
         # Find the best-fit parameter for each channel type
     for c in range(len(ch_types)):
         best_parameter[c] = parameters_to_test[np.argmin((sumsq[c]))]
+    print('--Participant {} optimized--'.format(subject))
+    
+    # Save fitting parameters results
+    fit_result = {"best_fit": best_parameter,
+                  "SSR":  sumsq,
+                  "R":  R_all,
+                   "param_name": 'tempFreq',
+                   "condition": condition,
+                   "subject": subject
+                   }
+    fname = "{}_fit_param_tempFreq_session2_{}.pkl".format(subject,condition)
+    a_file = open(os.path.join(wdir, 'data_MEEG', 'freeparam', fname), "wb")
+    pickle.dump(fit_result, a_file)
+    a_file.close() 
     
     return best_parameter, sumsq, R_all
 
@@ -160,6 +177,18 @@ a_file = open(os.path.join(wdir, 'results', fname), "wb")
 pickle.dump(fit_result, a_file)
 a_file.close()         
 
+############ for parameters where we don't know the parameters space ############
+
+entry_file = "C:\\Users\\laeti\\Data\\wave_model\\scripts_python\\WAVES\\test\\entry\\entry.ini"
+entry_list = read_entry_config(entry_file)
+entry = entry_list[0]
+
+ch_type= 'mag'
+bounds = (0.01,1.5) # spatial frequency
+p0 = 0.01 # initial parameter
+results = least_squares(func, x0=p0, args=(entry, ch_type), bounds = bounds, verbose=2)   
+
+    
 
 '''
 ############# plot 
@@ -203,17 +232,7 @@ start_time = time.time()
 wave_label = create_wave_stims(c_space, times, stim_inducer, eccen_screen, angle_label, eccen_label)
 print("--- %s seconds ---" % (time.time() - start_time))
 
-############ for parameters where we don't know the parameters space ############
-entry_file = "C:\\Users\\laeti\\Data\\wave_model\\scripts_python\\WAVES\\test\\entry\\entry.ini"
-entry_list = read_entry_config(entry_file)
-entry = entry_list[0]
 
-ch_type= 'mag'
-bounds = (2.,49.5) # temporal frequency
-p0 = 2 # initial parameter
-results = least_squares(func, x0=p0, args=(entry, ch_type), bounds = bounds, verbose=2)   
-
-    
 ###### TESTS ##################################################################
 
 from toolbox.simulation import Simulation, create_sim_from_entry
