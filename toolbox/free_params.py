@@ -17,7 +17,7 @@ import numpy as np
 
 from toolbox.simulation import create_sim_from_entry
 from toolbox.projection import project_wave
-from toolbox.comparison import read_measured_evoked, compare_meas_simu, create_RSA_matrices, compare_meas_simu_oneChType
+from toolbox.comparison import compare_meas_simu, create_RSA_matrices, from_meas_evoked_to_matrix
 import time
 from numba import jit
 import os
@@ -57,10 +57,7 @@ def func(parameter, entry, verbose = False):
     sim = create_sim_from_entry(entry)
     stc = sim.generate_simulation()
     ev_proj = project_wave(entry, stc, verbose) 
-    ev_meas = read_measured_evoked(entry, verbose)
-    mat_simu = create_RSA_matrices(entry, ev_proj, ch_type, verbose)
-    mat_meas = create_RSA_matrices(entry, meas, ch_type, verbose) 
-    compare = compare_meas_simu(entry, proj, verbose)
+    compare = compare_meas_simu(entry, ev_proj, verbose=verbose)
     
     # select sum of squared residuals for all channel types and the complex comparison
     SSR = compare[-1] # compare[-1][:,2]
@@ -69,6 +66,24 @@ def func(parameter, entry, verbose = False):
     
     return SSR, R  
 
+def func_sF(parameter, entry, res_meas, ch_types, verbose = False):
+    ''' Free parameter p = spatial frequency'''
+    
+    freq_temp = 5
+    freq_spatial = parameter
+    amplitude = 1e-08
+    phase_offset = 1.5707963267948966
+    
+    entry.simulation_params = [freq_temp, freq_spatial, amplitude, phase_offset]
+    sim = create_sim_from_entry(entry)
+    stc = sim.generate_simulation()
+    ev_proj = project_wave(entry, stc, verbose) 
+    compare = compare_meas_simu(entry, ev_proj, ch_types = ch_types, meas = res_meas, verbose=verbose)
+    
+    # select sum of squared residuals for all channel types and the complex comparison
+    SSR = compare[-1][:,2] # only complex data SSR
+    
+    return SSR
 
 def fit_tempFreq(entry, subject, condition, parameters_to_test):
     '''
@@ -96,8 +111,11 @@ def fit_tempFreq(entry, subject, condition, parameters_to_test):
         cond = 'trav_in'
     
     # Change subject
-    #entry.measured = wdir + 'data_MEEG/sensors/' + subject + '_' + cond +'-ave.fif'
-    entry.measured = wdir + 'data_MEEG/simulation/' + subject + '_proj_V1_session2_' + cond +'-ave.fif' # test
+    #entry.measured = wdir + 'data_MEEG/sensors/' + subject + '_' + cond +'-ave.fif' # TO PUT BACK
+    #entry.measured = wdir + 'data_MEEG/simulation/' + subject + '_proj_V1_session2_' + cond +'-ave.fif' # test pure 5Hz
+    #entry.measured = wdir + 'data_MEEG/simulation/' + subject + '_proj_V1_session2_5plus10Hz_' + cond +'-ave.fif' # pure 5 + 10Hz
+    entry.measured = wdir + 'data_MEEG/simulation/' + subject + '_proj_V1_session2_5plus7Hz_' + cond +'-ave.fif' # pure 5 + 10Hz
+
     entry.freesurfer = wdir + 'data_MRI/preproc/freesurfer/' + subject
     entry.forward_model = wdir + 'data_MEEG/preproc/'+ subject+'/forwardmodel/' + subject + '_session2_ico5-fwd.fif'
     
@@ -105,7 +123,7 @@ def fit_tempFreq(entry, subject, condition, parameters_to_test):
     ch_types = ['mag', 'grad', 'eeg']
     sumsq = np.zeros((len(ch_types), 3,len(parameters_to_test)))
     R_all = np.zeros((len(ch_types), 3,len(parameters_to_test)))
-    best_parameter = [None,None,None]
+    best_parameter =np.zeros((len(ch_types), 3))
     
     # Iterate over the parameters and store sum of sq
     for p,parameter in enumerate(parameters_to_test):
@@ -116,9 +134,10 @@ def fit_tempFreq(entry, subject, condition, parameters_to_test):
         #print('Parameter tested: {} Hz'.format(parameter))
         # Find the best-fit parameter for each channel type
     for c in range(len(ch_types)):
-        best_parameter[c] = parameters_to_test[np.argmin((sumsq[c]))]
+        best_parameter[c] = parameters_to_test[np.argmin(sumsq[c],1)]
     print('--Participant {} optimized--'.format(subject))
     
+
     # Save fitting parameters results
     fit_result = {"best_fit": best_parameter,
                   "SSR":  sumsq,
@@ -127,7 +146,7 @@ def fit_tempFreq(entry, subject, condition, parameters_to_test):
                    "condition": condition,
                    "subject": subject
                    }
-    fname = "{}_fit_param_tempFreq_session2_{}.pkl".format(subject,condition)
+    fname = "{}_fit_param_tempFreq_session2_5plus7Hz_{}.pkl".format(subject,condition)
     a_file = open(os.path.join(wdir, 'data_MEEG', 'freeparam', fname), "wb")
     pickle.dump(fit_result, a_file)
     a_file.close() 
@@ -167,26 +186,55 @@ res_allSubj = Parallel(n_jobs=4)(
     delayed(fit_tempFreq)(entry, subject, condition, parameters_to_test)
     for subject in subjects_ses2)
 
-# Save fitting parameters results
-fit_result = {"best_fit": best_param_allSubj,
-               "param_name": 'tempFreq',
-               "condition": condition
-               }
-fname = "fit_param_tempFreq_session2_{}.pkl".format(condition)
-a_file = open(os.path.join(wdir, 'results', fname), "wb")
-pickle.dump(fit_result, a_file)
-a_file.close()         
+############ Simulated measures ############
+
+# Create entry
+entry = Entry(c_space='full')
+width = 1920
+height = 1080
+distancefrom = 78
+heightcm = 44.2
+entry.screen_params = [width,height,distancefrom,heightcm]
+subject = 'JRRWDT'
+condition='TRAV_OUT'
+parameters_to_test = np.arange(2., 35., 1)
+bestP = fit_tempFreq(entry, subject, condition, parameters_to_test)
+
+# Pure sinusoid + noise
+freq_temp = 10
+freq_spatial = 0.05
+amplitude = 1e-08
+phase_offset = 1.5707963267948966
+verbose = True 
+entry.stim = 'TRAV_OUT'
+entry.simulation_params = [freq_temp, freq_spatial, amplitude, phase_offset]
+entry.freesurfer = wdir + 'data_MRI/preproc/freesurfer/' + subject
+entry.forward_model = wdir + 'data_MEEG/preproc/'+ subject+'/forwardmodel/' + subject + '_session2_ico5-fwd.fif'
+entry.measured = wdir + 'data_MEEG/sensors/' + subject + '_trav_out-ave.fif'
+sim = create_sim_from_entry(entry)
+stc = sim.generate_simulation()
+ev_proj10 = project_wave(entry, stc, verbose) 
+
+freq_temp = 5
+phase_offset = np.pi/4
+entry.simulation_params = [freq_temp, freq_spatial, amplitude, phase_offset]
+sim = create_sim_from_entry(entry)
+stc = sim.generate_simulation()
+ev_proj5 = project_wave(entry, stc, verbose)
+
+ev_proj = ev_proj5.copy()
+ev_proj.data = (ev_proj5.data + ev_proj10.data)/2
 
 ############ for parameters where we don't know the parameters space ############
 
-entry_file = "C:\\Users\\laeti\\Data\\wave_model\\scripts_python\\WAVES\\test\\entry\\entry.ini"
-entry_list = read_entry_config(entry_file)
-entry = entry_list[0]
 
-ch_type= 'mag'
+ch_types = ['mag']
 bounds = (0.01,1.5) # spatial frequency
 p0 = 0.01 # initial parameter
-results = least_squares(func, x0=p0, args=(entry, ch_type), bounds = bounds, verbose=2)   
+
+# Matrix for measured data
+res_meas = from_meas_evoked_to_matrix(entry, ch_types, verbose=verbose)
+results = least_squares(func_sF, x0=p0, args=(entry, res_meas, ch_types), bounds = bounds, verbose=2)   
 
     
 
