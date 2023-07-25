@@ -288,11 +288,11 @@ class Simulation:
                                            value_fun=lambda x: x)  # labels or label_sel
 
     def __fill_stc(self, stc_gen, inds_label, angle_label, eccen_label, wave_label):
-        stc_angle = stc_gen.copy()  # only for left hemisphere
+        stc_angle = stc_gen.copy()  
         stc_eccen = stc_gen.copy()
         tmp = None
 
-        if self.c_space == 'full':
+        if (self.c_space == 'full') | (self.c_space == 'fov'):
             tmp = stc_gen.copy()
             for i in inds_label[LEFT_HEMI]:
                 if i in stc_gen.lh_vertno:
