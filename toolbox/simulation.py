@@ -210,13 +210,13 @@ class Simulation:
                               e_cort - 2 * np.pi * params.freq_temp * t + params.phase_offset)
         elif self.stim == STANDING:
             @jit(nopython=True)
-            def func(t):
+            def func(t):                    
                 return params.amplitude * \
                        np.sin(2 * np.pi * params.freq_spatial * e_cort + params.phase_offset) * \
                        np.cos(2 * np.pi * params.freq_temp * t)
         elif self.stim == TRAV_IN:
             @jit(nopython=True)
-            def func(t):
+            def func(t):                      
                 return params.amplitude * \
                        np.sin(2 * np.pi * params.freq_spatial *
                               e_cort + 2 * np.pi * params.freq_temp * t + params.phase_offset)
@@ -227,6 +227,11 @@ class Simulation:
         # apply func on times
         for idx, time in enumerate(self.times):
             sin_inducer[idx] = func(time)
+            
+        # add decay from the eccentricity e0
+        decay_area = e_cort >= cort_eccen_mm(params.e0)
+        sin_inducer[:,decay_area] = sin_inducer[:,decay_area] * np.exp(-params.decay * (e_cort[decay_area] - params.e0)) 
+        
         return sin_inducer
 
     def __create_wave_stims(self, sin_inducer, eccen_screen, angle_label, eccen_label):

@@ -7,7 +7,7 @@ SIM_CONF = CONFIG_PATH / 'simulation.ini'
 SCREEN_CONF = CONFIG_PATH / 'screen.ini'
 
 simulation_params = namedtuple("simulation_params",
-                               ["freq_temp", "freq_spatial", "amplitude", "phase_offset"])
+                               ["freq_temp", "freq_spatial", "amplitude", "phase_offset", "decay", "e0"])
 
 # Pass tuple to each mri type. Must be in the same hemisphere order: (left, right)
 mri_paths = namedtuple("mri_paths", ["varea", "angle", "eccen"])
@@ -27,6 +27,8 @@ def load_param_from_config(dic, config_obj, section, param_class):
         freq_spatial: spatial frequency
         amplitude: amplitude 
         phase_offset: initial phase
+        decay: spatial decay of the amplitude of the wave
+        e0: eccentricity (in dva) from which starts the spatial decay
     """
 
     if config_obj and config_obj.has_section(section):
