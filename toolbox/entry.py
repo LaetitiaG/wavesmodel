@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Union
 
 from toolbox.utils import simulation_params as simp, screen_params as scp, load_param_from_config
 
@@ -22,9 +23,9 @@ class Entry:
     screen_params (Namedtuple): Screen parameters namedtuple.
     """
     def __init__(self,
-                 measured: Path | str = Path(),
-                 freesurfer: Path | str = Path(),
-                 forward_model: Path | str = Path(),
+                 measured: Union[Path, str] = Path(),
+                 freesurfer: Union[Path, str] = Path(),
+                 forward_model: Union[Path, str] = Path(),
                  stim: str = 'None',
                  c_space: str = 'None',
                  simulation_config_section: str = 'None',
@@ -42,6 +43,12 @@ class Entry:
         self._simulation_params = simulation_params
         self._screen_params = screen_params
 
+    def __repr__(self):
+        attributes = []
+        for attr, value in self.__dict__.items():
+            attributes.append(f"{attr}={value!r}")
+        return "Entry(\n  " + ",\n  ".join(attributes) + "\n)"   
+    
     # Getter and setter for 'measured'
     @property
     def measured(self):

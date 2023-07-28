@@ -90,7 +90,13 @@ class Simulation:
         info = mne.io.read_info(self.measured, verbose=self.verbose)
         self.tstep = 1 / info['sfreq']
         self.times = np.arange(2 / self.tstep + 1) * self.tstep
-
+        
+    def __repr__(self):
+        attributes = []
+        for attr, value in self.__dict__.items():
+            attributes.append(f"{attr}={value!r}")
+        return "Sim(\n  " + ",\n  ".join(attributes) + "\n)" 
+    
     def __load_retino(self):
         """
         Load retinotopy, visual phase and eccentricity for labels of both hemis
@@ -186,7 +192,7 @@ class Simulation:
             times (ndarray): An array of time points.
             params: A named tuple with the following fields:
                 - amplitude (float): The amplitude of the stimulus.
-                - freq_spacial (float): The spatial frequency of the stimulus.
+                - freq_spatial (float): The spatial frequency of the stimulus.
                 - freq_temp (float): The temporal frequency of the stimulus.
                 - phase_offset (float): The phase offset of the stimulus.
             e_cort (ndarray): An array of cortical distances.
@@ -195,24 +201,24 @@ class Simulation:
         Returns:
             An ndarray containing the screen luminance values for each time point and pixel.
         """
-        params = self.screen_params
+        params = self.simulation_params
         if self.stim == TRAV_OUT:
             @jit(nopython=True)
             def func(t):
                 return params.amplitude * \
-                       np.sin(2 * np.pi * params.freq_spacial *
+                       np.sin(2 * np.pi * params.freq_spatial *
                               e_cort - 2 * np.pi * params.freq_temp * t + params.phase_offset)
         elif self.stim == STANDING:
             @jit(nopython=True)
-            def func(t):
+            def func(t):                    
                 return params.amplitude * \
-                       np.sin(2 * np.pi * params.freq_spacial * e_cort + params.phase_offset) * \
+                       np.sin(2 * np.pi * params.freq_spatial * e_cort + params.phase_offset) * \
                        np.cos(2 * np.pi * params.freq_temp * t)
         elif self.stim == TRAV_IN:
             @jit(nopython=True)
-            def func(t):
+            def func(t):                      
                 return params.amplitude * \
-                       np.sin(2 * np.pi * params.freq_spacial *
+                       np.sin(2 * np.pi * params.freq_spatial *
                               e_cort + 2 * np.pi * params.freq_temp * t + params.phase_offset)
         else:
             raise ValueError('Incorrect stimulation value')  # needs to be InputStimError
@@ -221,6 +227,11 @@ class Simulation:
         # apply func on times
         for idx, time in enumerate(self.times):
             sin_inducer[idx] = func(time)
+            
+        # add decay from the eccentricity e0
+        decay_area = e_cort >= cort_eccen_mm(params.e0)
+        sin_inducer[:,decay_area] = sin_inducer[:,decay_area] * np.exp(-params.decay * (e_cort[decay_area] - params.e0)) 
+        
         return sin_inducer
 
     def __create_wave_stims(self, sin_inducer, eccen_screen, angle_label, eccen_label):
@@ -230,13 +241,14 @@ class Simulation:
             Used with apply_tuple, avoiding to have to handle tuple inside
         """
 
+        times = self.times
         @jit(float64[:, :](float64[:]), nopython=True)
         def __create_wave_label_single_hemi(eccen_label_hemi):
             """
             Returns 1 hemisphere of wave label
             To be used with apply_tuple
             """
-            wave_label_h = np.zeros((len(eccen_label_hemi), len(self.times)), dtype=np.float64)
+            wave_label_h = np.zeros((len(eccen_label_hemi), len(times)), dtype=np.float64)
             max_eccen = np.max(eccen_screen)
             for ind_l, l in enumerate(eccen_label_hemi):
                 if l > max_eccen:
@@ -277,15 +289,15 @@ class Simulation:
                                             parc='aparc.a2009s', verbose=verbose)  # aparc.DKTatlas
         n_labels = len(labels)
         signal = np.zeros((n_labels, len(self.times)))
-        return mne.simulation.simulate_stc(src, labels, signal, self.times[0], self.tstep,
+        return mne.simulation.simulate_stc(src, labels, signal, self.times[0], self.tstep, allow_overlap = True,
                                            value_fun=lambda x: x)  # labels or label_sel
 
     def __fill_stc(self, stc_gen, inds_label, angle_label, eccen_label, wave_label):
-        stc_angle = stc_gen.copy()  # only for left hemisphere
+        stc_angle = stc_gen.copy()  
         stc_eccen = stc_gen.copy()
         tmp = None
 
-        if self.c_space == 'full':
+        if (self.c_space == 'full') | (self.c_space == 'fov'):
             tmp = stc_gen.copy()
             for i in inds_label[LEFT_HEMI]:
                 if i in stc_gen.lh_vertno:
