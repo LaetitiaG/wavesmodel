@@ -14,6 +14,7 @@ Created on Mon Jun 19 14:39:34 2023
 
 from scipy.optimize import curve_fit, least_squares
 import numpy as np
+from copy import deepcopy
 
 from toolbox.simulation import create_sim_from_entry
 from toolbox.projection import project_wave
@@ -37,9 +38,9 @@ p = 0.05
 epoch_type = "SSVEP" # SSVEP 5Hzfilt
 ep_name = {'SSVEP': '-', '5Hzfilt': '_5Hzfilt-'}
 
-# my path
-wdir = 'C:/Users/laeti/Data/wave_model/'
-sensorspath = wdir + 'data_MEEG/sensors/' 
+wdir = 'C:\\Users\\laeti\\Data\\wave_model\\'
+freeparampath = wdir + 'data_MEEG\\freeparam\\' 
+
 
 ###### FUNCTIONS ##############################################################
 
@@ -61,31 +62,46 @@ def func(parameter, entry, verbose = False):
     
     # select sum of squared residuals for all channel types and the complex comparison
     SSR = compare[-1] # compare[-1][:,2]
-    R = compare[5] # compare[5][:,2]
+    R = compare[4] # compare[5][:,2]
     print("--- %s seconds ---" % (time.time() - start_time))
     
     return SSR, R  
 
-def func_sF(parameter, entry, res_meas, ch_types, verbose = False):
+def func_sF(parameter, entry, res_meas, ch_types, out = 'SSR', verbose = False):
     ''' Free parameter p = spatial frequency'''
     
-    freq_temp = 5
-    freq_spatial = parameter
-    amplitude = 1e-08
-    phase_offset = 1.5707963267948966
+    if type(entry) == Entry: # only one condition
+        freq_temp = 5
+        freq_spatial = parameter
+        amplitude = 1e-08
+        phase_offset = 1.5707963267948966
+        
+        entry.simulation_params = [freq_temp, freq_spatial, amplitude, phase_offset]
+        sim = create_sim_from_entry(entry)
+        stc = sim.generate_simulation()
+        ev_proj = project_wave(entry, stc, verbose) 
+        compare = compare_meas_simu(entry, ev_proj, ch_types = ch_types, meas = res_meas, verbose=verbose)
+        
+        # select sum of squared residuals for all channel types and the complex comparison
+        SSR = compare[-1][:,2] # only complex data SSR
+        R = compare[4][:,2]
     
-    entry.simulation_params = [freq_temp, freq_spatial, amplitude, phase_offset]
-    sim = create_sim_from_entry(entry)
-    stc = sim.generate_simulation()
-    ev_proj = project_wave(entry, stc, verbose) 
-    compare = compare_meas_simu(entry, ev_proj, ch_types = ch_types, meas = res_meas, verbose=verbose)
-    
-    # select sum of squared residuals for all channel types and the complex comparison
-    SSR = compare[-1][:,2] # only complex data SSR
-    
-    return SSR
+    elif type(entry) == list: # several conditions to combine
+        SSR = 0
+        R = []
+        for ent, res in zip(entry, res_meas):
+            if out == 'SSR':
+                SSR += func_sF(parameter, ent, res, ch_types)
+            elif out == 'R':
+                R.append(func_sF(parameter, ent, res, ch_types))
 
-def fit_tempFreq(entry, subject, condition, parameters_to_test):
+    if out == 'SSR':
+        return SSR
+    elif out == 'R':
+        return R
+        
+
+def fit_tempFreq(entry, subject, condition_meas, condition_simu, parameters_to_test):
     '''
     
 
@@ -93,8 +109,10 @@ def fit_tempFreq(entry, subject, condition, parameters_to_test):
     ----------
     subject : str
         DESCRIPTION.
-    condition : str
-        'TRAV_OUT', 'TRAV_IN'
+    condition_meas : str
+        'trav_out', 'trav_in', 'fov_out'
+    condition_simu : str
+        'trav_out', 'trav_in', 'fov_out'
 
     Returns
     -------
@@ -104,17 +122,21 @@ def fit_tempFreq(entry, subject, condition, parameters_to_test):
     '''
         
     # Change condition
-    entry.stim = condition
-    if condition == 'TRAV_OUT':
-        cond = 'trav_out'
-    elif condition == 'TRAV_IN':
-        cond = 'trav_in'
+    if condition_simu == 'trav_out' :
+        entry.stim = 'TRAV_OUT'
+        entry.c_space = 'full'
+    elif condition_simu == 'trav_in':
+        entry.stim = 'TRAV_IN'
+        entry.c_space = 'full'
+    elif condition_simu == 'fov_out':
+        entry.stim = 'TRAV_OUT'
+        entry.c_space = 'fov'         
     
     # Change subject
-    #entry.measured = wdir + 'data_MEEG/sensors/' + subject + '_' + cond +'-ave.fif' # TO PUT BACK
+    entry.measured = wdir + 'data_MEEG/sensors/' + subject + '_' + condition_meas +'-ave.fif' # TO PUT BACK
     #entry.measured = wdir + 'data_MEEG/simulation/' + subject + '_proj_V1_session2_' + cond +'-ave.fif' # test pure 5Hz
     #entry.measured = wdir + 'data_MEEG/simulation/' + subject + '_proj_V1_session2_5plus10Hz_' + cond +'-ave.fif' # pure 5 + 10Hz
-    entry.measured = wdir + 'data_MEEG/simulation/' + subject + '_proj_V1_session2_5plus7Hz_' + cond +'-ave.fif' # pure 5 + 10Hz
+    #entry.measured = wdir + 'data_MEEG/simulation/' + subject + '_proj_V1_session2_5plus7Hz_' + cond +'-ave.fif' # pure 5 + 10Hz
 
     entry.freesurfer = wdir + 'data_MRI/preproc/freesurfer/' + subject
     entry.forward_model = wdir + 'data_MEEG/preproc/'+ subject+'/forwardmodel/' + subject + '_session2_ico5-fwd.fif'
@@ -146,12 +168,104 @@ def fit_tempFreq(entry, subject, condition, parameters_to_test):
                    "condition": condition,
                    "subject": subject
                    }
-    fname = "{}_fit_param_tempFreq_session2_5plus7Hz_{}.pkl".format(subject,condition)
+
+    fname = "{}_fit_param_tempFreq_session2_meas_{}_simu_{}.pkl".format(subject, condition_meas, condition_simu)
     a_file = open(os.path.join(wdir, 'data_MEEG', 'freeparam', fname), "wb")
     pickle.dump(fit_result, a_file)
     a_file.close() 
     
     return best_parameter, sumsq, R_all
+
+def fit_spatFreq(entry, subject, condition_meas, condition_simu, ch_types):
+    '''
+    
+
+    Parameters
+    ----------
+    subject : str
+        DESCRIPTION.
+    condition_meas : str
+        'trav_out', 'trav_in', 'fov_out'
+        If a list of conditions is passed, the SSR for each condition is calculated then summed.
+    condition_simu : str
+        'trav_out', 'trav_in', 'fov_out'
+        If a list is passed, it should match the lenght of the list in condition_meas.
+
+    Returns
+    -------
+    best_parameter : float
+        DESCRIPTION.
+
+    '''
+    
+    # Update subject
+    entry.freesurfer = wdir + 'data_MRI/preproc/freesurfer/' + subject
+    entry.forward_model = wdir + 'data_MEEG/preproc/'+ subject+'/forwardmodel/' + subject + '_session2_ico5-fwd.fif'
+        
+    if type(condition_meas) == str:   # only one condition
+        cond_meas_name = condition_meas; cond_simu_name = condition_simu
+        # Update simulation condition     
+        if condition_simu == 'trav_out' :
+            entry.stim = 'TRAV_OUT'
+            entry.c_space = 'full'
+        elif condition_simu == 'trav_in':
+            entry.stim = 'TRAV_IN'
+            entry.c_space = 'full'
+        elif condition_simu == 'fov_out':
+            entry.stim = 'TRAV_OUT'
+            entry.c_space = 'fov'             
+        
+        # Update measured condition
+        entry.measured = wdir + 'data_MEEG/sensors/' + subject + '_' + condition_meas +'-ave.fif' # TO PUT BACK
+        entries = entry
+        
+        # Matrix for measured data
+        res_meas = from_meas_evoked_to_matrix(entry, ch_types, verbose=False)
+        
+    elif type(condition_meas) == list:  # several conditions to combine
+        entries = []
+        res_meas = []
+        cond_meas_name = 'comb_' ; cond_simu_name = 'comb_' 
+        for cond_meas, cond_simu in zip(condition_meas, condition_simu):
+            # # Update simulated condition     
+            if cond_simu == 'trav_out' :
+                entry.stim = 'TRAV_OUT'
+                entry.c_space = 'full'
+            elif cond_simu == 'trav_in':
+                entry.stim = 'TRAV_IN'
+                entry.c_space = 'full'
+            elif cond_simu == 'fov_out':
+                entry.stim = 'TRAV_OUT'
+                entry.c_space = 'fov'             
+            
+            # Update measured condition
+            entry.measured = wdir + 'data_MEEG/sensors/' + subject + '_' + cond_meas +'-ave.fif' # TO PUT BACK
+            entries.append(deepcopy(entry))
+            cond_meas_name += cond_meas + '_'
+            cond_simu_name += cond_simu + '_'
+            
+            # Matrix for measured data
+            res_meas.append(from_meas_evoked_to_matrix(entry, ch_types, verbose=False))            
+        
+    # Fit parameter
+    results = least_squares(func_sF, x0=p0, args=(entries, res_meas, ch_types), bounds = bounds, verbose=2)   
+    print('--Participant {} optimized--'.format(subject))   
+
+    # Save fitting parameters results
+    fit_result = {"best_fit": results.x,
+                  "SSR":  results.fun,
+                  "full_results":  results,
+                   "param_name": 'spatialFreq',
+                   "condition_meas": condition_meas,
+                   "condition_simu": condition_simu,
+                   "subject": subject
+                   }
+    fname = "{}_fit_param_spatialFreq_session2_meas_{}_simu_{}_{}.pkl".format(subject, cond_meas_name, cond_simu_name, ch_types[0])
+    a_file = open(os.path.join(wdir, 'data_MEEG', 'freeparam', fname), "wb")
+    pickle.dump(fit_result, a_file)
+    a_file.close() 
+                  
+    return 
 
 ############ for parameters where we know the parameters space (temporal frequency) ############
 
@@ -167,7 +281,7 @@ print("--- %s seconds ---" % (time.time() - start_time))
 subjects_ses2 = ['EWTO6I', 'QNP39U', 'OF4IP5', 'XZJ7KI', '03TPZ5','UEGW36',\
             'S1VW75', 'QFLDFC', 'JRRWDT', 'Q95PQG', '90WCLR', 'TX0JPL',\
             'U2XPZV', '575ZC9', 'D1AQHG','8KYLY7', 'O3YE19', 'DOYJLH', 'NOT7EZ']
-subjects_ses2 = ['EWTO6I', 'QNP39U']
+subjects_ses2 = ['U2XPZV']
     
 condition = 'TRAV_OUT' # 'TRAV_OUT' or 'TRAV_IN'
 parameters_to_test = np.arange(2., 15., 3) # freqs  np.arange(2., 50., 0.5)
@@ -186,8 +300,85 @@ res_allSubj = Parallel(n_jobs=4)(
     delayed(fit_tempFreq)(entry, subject, condition, parameters_to_test)
     for subject in subjects_ses2)
 
+#### foveal conditions
+subjects_ses2 = ['EWTO6I', 'QNP39U', 'OF4IP5', 'XZJ7KI', '03TPZ5','UEGW36',\
+            'S1VW75', 'QFLDFC', 'JRRWDT', 'Q95PQG', '90WCLR', 'TX0JPL',\
+            'U2XPZV', '575ZC9', 'D1AQHG','8KYLY7', 'O3YE19', 'DOYJLH', 'NOT7EZ']
+    
+condition_meas = 'fov_out'
+condition_simu ='trav_out'
+parameters_to_test = np.arange(2., 50., 0.5) # freqs  np.arange(2., 50., 0.5)
+
+entry = Entry()
+width = 1920
+height = 1080
+distancefrom = 78
+heightcm = 44.2
+entry.screen_params = [width,height,distancefrom,heightcm]
+
+# Loop across participants
+res_allSubj = Parallel(n_jobs=19)(
+    delayed(fit_tempFreq)(entry, subject, condition_meas,condition_simu, parameters_to_test)
+    for subject in subjects_ses2)
+
+
 ############ Simulated measures ############
 
+import mne 
+# Create simulation 5 + 10 Hz
+entry = Entry(c_space='full')
+width = 1920
+height = 1080
+distancefrom = 78
+heightcm = 44.2
+entry.screen_params = [width,height,distancefrom,heightcm]
+entry.stim = 'TRAV_OUT'
+if entry.stim == 'TRAV_OUT':
+    cond = 'trav_out'
+elif entry.stim == 'TRAV_IN':
+    cond = 'trav_in'
+verbose = True 
+for subject in subjects_ses2:
+    # freq_temp = 10
+    # freq_spatial = 0.05
+    # amplitude = 1e-08
+    # phase_offset = 1.5707963267948966
+    # entry.simulation_params = [freq_temp, freq_spatial, amplitude, phase_offset]
+    # entry.freesurfer = wdir + 'data_MRI/preproc/freesurfer/' + subject
+    # entry.forward_model = wdir + 'data_MEEG/preproc/'+ subject+'/forwardmodel/' + subject + '_session2_ico5-fwd.fif'
+    # entry.measured = wdir + 'data_MEEG/sensors/' + subject + '_'+ cond+'-ave.fif'
+    # sim = create_sim_from_entry(entry)
+    # stc = sim.generate_simulation()
+    # ev_proj10 = project_wave(entry, stc, verbose) 
+    
+    # freq_temp = 5
+    # phase_offset = np.pi/4
+    # entry.simulation_params = [freq_temp, freq_spatial, amplitude, phase_offset]
+    # sim = create_sim_from_entry(entry)
+    # stc = sim.generate_simulation()
+    # ev_proj5 = project_wave(entry, stc, verbose)
+    
+    # ev_proj = ev_proj5.copy()
+    # ev_proj.data = (ev_proj5.data + ev_proj10.data)/2
+
+    # Read evoked
+    fname = wdir + 'data_MEEG/simulation/' + subject + '_proj_V1_session2_5plus10Hz_' + cond +'-ave.fif'
+    ev_proj = mne.read_evokeds(fname, verbose=verbose)[0]
+    
+    # add noise based on individual noise covariance matrix
+    fname = wdir + 'data_MEEG/sensors/EWTO6I_'+cond+'-epo.fif' 
+    epochs = mne.read_epochs(fname, verbose=verbose)[0]
+    noise_cov_reg = mne.compute_covariance(epochs, tmax=-0.1, method="auto", rank=None)
+    mne.simulation.add_noise(ev_proj,  noise_cov_reg, random_state=42)
+    
+    # Save simulation
+    fname = wdir + 'data_MEEG/simulation/' + subject + '_proj_V1_session2_5plus10Hz_' + cond +'-ave.fif' # pure 5 + 10Hz
+    ev_proj.save(fname, overwrite=True)
+
+
+############ for parameters where we don't know the parameters space ############
+
+##### NO LOOP #####
 # Create entry
 entry = Entry(c_space='full')
 width = 1920
@@ -197,36 +388,9 @@ heightcm = 44.2
 entry.screen_params = [width,height,distancefrom,heightcm]
 subject = 'JRRWDT'
 condition='TRAV_OUT'
-parameters_to_test = np.arange(2., 35., 1)
-bestP = fit_tempFreq(entry, subject, condition, parameters_to_test)
-
-# Pure sinusoid + noise
-freq_temp = 10
-freq_spatial = 0.05
-amplitude = 1e-08
-phase_offset = 1.5707963267948966
-verbose = True 
-entry.stim = 'TRAV_OUT'
-entry.simulation_params = [freq_temp, freq_spatial, amplitude, phase_offset]
 entry.freesurfer = wdir + 'data_MRI/preproc/freesurfer/' + subject
 entry.forward_model = wdir + 'data_MEEG/preproc/'+ subject+'/forwardmodel/' + subject + '_session2_ico5-fwd.fif'
 entry.measured = wdir + 'data_MEEG/sensors/' + subject + '_trav_out-ave.fif'
-sim = create_sim_from_entry(entry)
-stc = sim.generate_simulation()
-ev_proj10 = project_wave(entry, stc, verbose) 
-
-freq_temp = 5
-phase_offset = np.pi/4
-entry.simulation_params = [freq_temp, freq_spatial, amplitude, phase_offset]
-sim = create_sim_from_entry(entry)
-stc = sim.generate_simulation()
-ev_proj5 = project_wave(entry, stc, verbose)
-
-ev_proj = ev_proj5.copy()
-ev_proj.data = (ev_proj5.data + ev_proj10.data)/2
-
-############ for parameters where we don't know the parameters space ############
-
 
 ch_types = ['mag']
 bounds = (0.01,1.5) # spatial frequency
@@ -236,6 +400,67 @@ p0 = 0.01 # initial parameter
 res_meas = from_meas_evoked_to_matrix(entry, ch_types, verbose=verbose)
 results = least_squares(func_sF, x0=p0, args=(entry, res_meas, ch_types), bounds = bounds, verbose=2)   
 
+##### LOOP ACROSS SUBJECTS #####
+entry = Entry(c_space='full')
+width = 1920
+height = 1080
+distancefrom = 78
+heightcm = 44.2
+entry.screen_params = [width,height,distancefrom,heightcm]
+condition='TRAV_IN'
+ch_types = ['eeg']
+bounds = (0.01,1.5) # spatial frequency
+p0 = 0.01 # initial parameter
+
+subjects_ses2 = ['EWTO6I', 'QNP39U', 'OF4IP5', 'XZJ7KI', '03TPZ5','UEGW36',\
+            'S1VW75', 'QFLDFC', 'JRRWDT', 'Q95PQG', '90WCLR', 'TX0JPL',\
+            'U2XPZV', '575ZC9', 'D1AQHG','8KYLY7', 'O3YE19', 'DOYJLH', 'NOT7EZ']
+res_allSubj = Parallel(n_jobs=19)(
+    delayed(fit_spatFreq)(entry, subject, condition, ch_types)
+    for subject in subjects_ses2)
+
+##### COMPUTE R CORRESPONDING TO BEST FIT #####
+entry = Entry()
+width = 1920
+height = 1080
+distancefrom = 78
+heightcm = 44.2
+entry.screen_params = [width,height,distancefrom,heightcm]
+condition_meas = 'fov_out'
+condition_simu = 'trav_out'
+if condition_simu == 'trav_out' :
+    entry.stim = 'TRAV_OUT'
+    entry.c_space = 'full'
+elif condition_simu == 'trav_in':
+    entry.stim = 'TRAV_IN'
+    entry.c_space = 'full'
+elif condition_simu == 'fov_out':
+    entry.stim = 'TRAV_OUT'
+    entry.c_space = 'fov'  
+verbose= False
+
+for s, subject in enumerate(subjects_ses2):
+    
+    print(subject + ' - ' + cond)
+    entry.freesurfer = wdir + 'data_MRI/preproc/freesurfer/' + subject
+    entry.forward_model = wdir + 'data_MEEG/preproc/'+ subject+'/forwardmodel/' + subject + '_session2_ico5-fwd.fif'
+    entry.measured = wdir + 'data_MEEG/sensors/' + subject + '_' + condition_meas + '-ave.fif'    
+    # Open best fit
+    for ch,ch_type in enumerate(ch_types):
+        fname = "{}_fit_param_spatialFreq_session2_meas_{}_simu_{}_{}.pkl".format(subject,condition_meas, condition_simu,ch_type)
+        a_file = open(os.path.join(freeparampath, fname), "rb")
+        fit_results = pickle.load(a_file)    
+    
+        # Calculate R
+        parameter = fit_results['best_fit'][0]
+        res_meas = from_meas_evoked_to_matrix(entry, [ch_type], verbose=verbose)
+        R = func_sF(parameter, entry, res_meas, ch_types = [ch_type], out = 'R')
+    
+        # Save it in the best fit file       
+        fit_results['R_bestFit'] = R[0]
+        a_file = open(os.path.join(freeparampath, fname), "wb")
+        pickle.dump(fit_results, a_file)
+        a_file.close() 
     
 
 '''
