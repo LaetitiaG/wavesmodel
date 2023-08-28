@@ -13,6 +13,7 @@ RIGHT_HEMI = 1
 TRAV_OUT = "TRAV_OUT"
 STANDING = "STANDING"
 TRAV_IN = "TRAV_IN"
+TRAV_OUT_STAND = "TRAV_OUT_STAND"
 
 # select in which label the simulation is done 
 # 1	V1 / 2	V2 / 3	V3 / 4	hV4 / 5	VO1 / 6	VO2 / 7	LO1 / 8	LO2 / 9	TO1
@@ -220,6 +221,14 @@ class Simulation:
                 return params.amplitude * \
                        np.sin(2 * np.pi * params.freq_spatial *
                               e_cort + 2 * np.pi * params.freq_temp * t + params.phase_offset)
+        elif self.stim == TRAV_OUT_STAND:
+            @jit(nopython=True)
+            def func(t):
+                return params.amplitude * \
+                       np.sin(2 * np.pi * params.freq_spatial *
+                              e_cort - 2 * np.pi * params.freq_temp * t + params.phase_offset) +  params.amplitude * \
+                              np.sin(2 * np.pi * params.freq_spatial * e_cort + params.phase_offset) * \
+                              np.cos(2 * np.pi * params.freq_temp * t)
         else:
             raise ValueError('Incorrect stimulation value')  # needs to be InputStimError
 
