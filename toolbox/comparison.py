@@ -68,6 +68,51 @@ def circular_diff(phases1, phases2):
 
     return diff
 
+def TS_SS(v1, v2):
+    '''
+    Calculate Triangle Similarity-Sector Similarity (TS-SS) between two vectors.
+    This distance metric accont for difference in phase and magnitude.
+    
+    Source: A. Heidarian and M. J. Dinneen, "A Hybrid Geometric Approach for 
+    Measuring Similarity Level Among Documents and Document Clustering," 2016 
+    IEEE Second International Conference on Big Data Computing Service and 
+    Applications (BigDataService), Oxford, UK, 2016, pp. 142-151, 
+    doi: 10.1109/BigDataService.2016.14.
+
+    Parameters
+    ----------
+    v1 : ARRAY
+        Array of vectors in complex form.
+    v2 : ARRAY
+        Array of vectors in complex form.
+
+    Returns
+    -------
+    TS_SS : ARRAY
+        TS-SS metric, between 0 and +infinite. The more similar, the closer to zero.
+
+    '''
+    
+    # Euclidean distance
+    ED = np.linalg.norm(v1[:, np.newaxis]-v2[:, np.newaxis], axis = 1)
+
+    # Angle between v1 and v2
+    V = np.real(v1*np.conjugate(v2).T)/(np.linalg.norm(v1[:, np.newaxis], axis=1) * np.linalg.norm(v2[:, np.newaxis], axis=1))
+    theta = np.arccos(V) + np.radians(10)    
+    theta[theta > np.pi] = np.pi # correct the 10° adjustement so that theta is between 0 and pi
+    
+    # Magnitude difference
+    MD = abs((np.linalg.norm(v1[:, np.newaxis], axis = 1) - np.linalg.norm(v2[:, np.newaxis], axis = 1)))
+    
+    # Triangle's area similarity
+    TS = ((np.linalg.norm(v1[:, np.newaxis], axis = 1) * np.linalg.norm(v2[:, np.newaxis], axis = 1)) * np.sin(theta))/2
+    
+    # Sector’s Area Similarity
+    SS = np.pi * (ED + MD)**2 * theta/360    
+    
+    return TS*SS
+    
+
     
 def create_RSA_matrices(entry, evoked, ch_type, verbose=False):
     """
@@ -344,11 +389,11 @@ def compare_meas_simu(entry, ev_proj, meas= 'to_compute', ch_types = ['mag', 'gr
         times = meas[2];        matrices_meas = meas[3]
     
     # Calculate RSA matrices for simulated data
-    matrices_simu = {}; phases = {}; ampls= {} 
+    matrices_simu = {}; phases = {}; ampls= {}; TSSS = {}
     zscores = np.zeros((len(ch_types), 3))  # zscore of the correlation ch_type*amp/phase/cplx
-    R2_all = np.zeros((len(ch_types), 3))
+    R2_all = np.zeros((len(ch_types), 3)) # ch_type*amp/phase/cplx/combined
     pval_all = np.zeros((len(ch_types), 3))
-    SSR = np.zeros((len(ch_types), 3))    
+    SSR = np.zeros((len(ch_types), 3)) 
     for ch, ch_type in enumerate(ch_types):
         phases_simu, ampls_simu, times, matrices_simu[ch_type] = create_RSA_matrices(entry, ev_proj, ch_type, verbose)
         phases[ch_type] = np.stack((phases_meas[ch_type], phases_simu)) # meas/simu
@@ -366,7 +411,7 @@ def compare_meas_simu(entry, ev_proj, meas= 'to_compute', ch_types = ['mag', 'gr
             if data == 'amplitude':
                 R2, pval = scistats.spearmanr(meas, simu)
                 zscores[ch,i] = 0.5 * np.log((1 + R2) / (1 - R2))  # fisher Z (ok for spearman when N>10)
-                SSR[ch,i] = np.real(np.sum((meas-simu)**2))    
+                SSR[ch,i] = np.real(np.sum((meas-simu)**2))
             elif data == 'phase':
                 R2, zscore, pval = circular_corr(meas, simu)
                 zscores[ch,i] = zscore
@@ -378,16 +423,18 @@ def compare_meas_simu(entry, ev_proj, meas= 'to_compute', ch_types = ['mag', 'gr
                 df = len(meas) - 2
                 tscore = R2 * np.sqrt(df) / np.sqrt(1 - R2 * R2)  # Kanji 2006
                 pval = scistats.t.sf(tscore, df) 
-                #SSR[i] = np.sum(np.abs((meas-simu)**2)) # equivalent to np.sum(diff.real**2 + diff.imag**2)
+                
+                # Calculate TS-SS distance metric between complex meas and simu
+                TSSS[ch] = TS_SS(meas, simu)
                               
             # Store statistics    
             R2_all[ch,i] = R2 
             pval_all[ch,i] = pval  
-            
+        
         # Compute the SSR for complex values as the sum of SSR for phase and amp
-        SSR[ch,2] = SSR[ch,0] + SSR[ch,1]
+        SSR[ch,2] = SSR[ch,0] + SSR[ch,1]     
     
-    return phases, ampls, times, zscores, R2_all, pval_all, matrices_meas, matrices_simu, SSR
+    return phases, ampls, times, zscores, R2_all, pval_all, matrices_meas, matrices_simu, SSR, TSSS
 
 
 # def compare_meas_simu(entry, ev_proj, ev_meas, verbose = False):
