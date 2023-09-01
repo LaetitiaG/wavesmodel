@@ -348,8 +348,8 @@ def compare_meas_simu(entry, ev_proj, meas= 'to_compute', ch_types = ['mag', 'gr
     ----------
     entry : class
         Class for entry values
-    ev_proj : STRING
-        Path and file name for the simulated data file to compare (should contain an evoked).
+    ev_proj : EVOKED
+        Evoked instance of the model predictions.
     meas : STRING or output from from_meas_evoked_to_matrix
         If 'to_compute', matrices are calculated from entry. 
     ch_type : STRING
