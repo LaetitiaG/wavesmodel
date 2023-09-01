@@ -238,8 +238,9 @@ class Simulation:
             sin_inducer[idx] = func(time)
             
         # add decay from the eccentricity e0
-        decay_area = e_cort >= cort_eccen_mm(params.e0)
-        sin_inducer[:,decay_area] = sin_inducer[:,decay_area] * np.exp(-params.decay * (e_cort[decay_area] - params.e0)) 
+        e_cort_e0 = cort_eccen_mm(params.e0)
+        decay_area = e_cort >= e_cort_e0
+        sin_inducer[:,decay_area] = sin_inducer[:,decay_area] * np.exp(-params.decay * (e_cort[decay_area] - e_cort_e0)) 
         
         return sin_inducer
 
