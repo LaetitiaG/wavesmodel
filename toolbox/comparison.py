@@ -115,7 +115,7 @@ def TS_SS(v1, v2):
     
 
     
-def create_RSA_matrices(entry, evoked, ch_type, verbose=False):
+def create_RSA_matrices(entry, evoked, ch_type, SNR_threshold = 1, verbose=False):
     """
     Create RSA matrices for phase and amplitude relationship between each pair
     of sensors of the given channel type.
@@ -138,6 +138,9 @@ def create_RSA_matrices(entry, evoked, ch_type, verbose=False):
         Times of the evoked files.    
     matrices : ARRAY amplitude/phase/complex*Nchan*Nchan
         RSA-like matrices for each feature of the signal (phase/ampl/cplx).
+    SNR : ARRAY Nchan
+        Signal Over Noise ratio of the amplitude at the stimulation frequency sf, 
+        compared to the amplitude at (fs-1) and (fs+1), per channel.
 
     """
 
@@ -169,10 +172,19 @@ def create_RSA_matrices(entry, evoked, ch_type, verbose=False):
     fclose = freqs[np.nanargmin(np.abs(freqs - fstim))] # find closest freq
     phases = np.squeeze(phase[0, :, freqs == fclose])
     ampls = np.squeeze(amp[0, :, freqs == fclose])
-
     times = ev_ch.times
     msk_t = times > tmin_crop
 
+    # Calculate SNR for each channel
+    noise = np.mean(np.squeeze(amp[0, :, (freqs == fclose-1.5) | (freqs == fclose+1.5)]),0)
+    if ch_type == 'grad':
+        inds1 = mne.pick_types(ev_ch.info, meg='planar1', eeg=False)
+        inds2 = mne.pick_types(ev_ch.info, meg='planar2', eeg=False)
+        SNR = (ampls[inds1]/noise[inds1] + ampls[inds2]/noise[inds2])/2
+    else:
+        SNR = ampls/noise
+    SNR = np.mean(SNR[:,msk_t],1)
+    
     ###### AMPLITUDE ######
     # Compute a matrix of relative amplitude between sensors for each sensor type
     if ch_type == 'grad':
@@ -229,10 +241,16 @@ def create_RSA_matrices(entry, evoked, ch_type, verbose=False):
     # Compute a complex matrix combining amplitude and phase
     matrices[2] = matrices[0] * np.exp(matrices[1] * 1j)
     
-    return phases, ampls, times,matrices    
+    # Replace values with too low SNR by NaN
+    msk_SNR = SNR < SNR_threshold
+    msk_mat = np.tile(msk_SNR, (len(msk_SNR), 1)) & np.tile(msk_SNR[:,np.newaxis], (1,len(msk_SNR)))
+    matrices[:,msk_mat] = np.NaN
+    print('{}: {:.1f}% of values are discarded due to low SNR (<{})'.format(ch_type, np.sum(msk_SNR)/len(msk_SNR)*100 , SNR_threshold))
+    
+    return phases, ampls, times,matrices, SNR    
 
 
-def from_meas_evoked_to_matrix(entry, ch_types = ['mag', 'grad', 'eeg'], verbose=False):
+def from_meas_evoked_to_matrix(entry, ch_types = ['mag', 'grad', 'eeg'], SNR_threshold = 1, verbose=False):
     
     # Check that ch_types is a list
     if not(isinstance(ch_types, list)):
@@ -243,12 +261,12 @@ def from_meas_evoked_to_matrix(entry, ch_types = ['mag', 'grad', 'eeg'], verbose
     evoked.crop(tmin=0, tmax=2)
     
     # Create RSA matrices for the required channels
-    matrices = {} 
+    matrices = {} ; SNR = {}
     phases = {}; ampls= {}    
     for ch, ch_type in enumerate(ch_types):
-        phases[ch_type], ampls[ch_type], times, matrices[ch_type] = create_RSA_matrices(entry, evoked, ch_type, verbose)
+        phases[ch_type], ampls[ch_type], times, matrices[ch_type], SNR[ch_type] = create_RSA_matrices(entry, evoked, ch_type, SNR_threshold, verbose)
         
-    return phases, ampls, times, matrices
+    return phases, ampls, times, matrices, SNR
     
 # def compare_meas_simu_oneChType(entry, ev_proj, ev_meas, ch_type, verbose=False): ### OLD
 #     '''
@@ -340,7 +358,7 @@ def from_meas_evoked_to_matrix(entry, ch_types = ['mag', 'grad', 'eeg'], verbose
     
 #     return phases, ampls, times, zscores, R2_all, pval_all, matrices_meas, matrices_simu, SSR
 
-def compare_meas_simu(entry, ev_proj, meas= 'to_compute', ch_types = ['mag', 'grad', 'eeg'], verbose=False):
+def compare_meas_simu(entry, ev_proj, meas= 'to_compute', ch_types = ['mag', 'grad', 'eeg'], SNR_threshold = 1, verbose=False):
     '''
     Compare the relationships between pairs of sensors in terms of amplitude, phase
     or complex values between measured and simulated signal for a given channel type.
@@ -355,6 +373,9 @@ def compare_meas_simu(entry, ev_proj, meas= 'to_compute', ch_types = ['mag', 'gr
         If 'to_compute', matrices are calculated from entry. 
     ch_type : STRING
         'mag', 'grad', 'eeg'
+    SNR_threshold : FLOAT
+        If the SNR of measured data in a given sensor is below this value, it is
+        not considered in the matrices (hence NaN values in the matrix). Default to 1.    
 
     Returns
     -------
@@ -386,19 +407,19 @@ def compare_meas_simu(entry, ev_proj, meas= 'to_compute', ch_types = ['mag', 'gr
 
     # Calculate RSA matrices for measured data
     if meas == 'to_compute':
-        phases_meas, ampls_meas, times, matrices_meas = from_meas_evoked_to_matrix(entry, ch_types, verbose=False)
+        phases_meas, ampls_meas, times, matrices_meas, SNR_meas = from_meas_evoked_to_matrix(entry, ch_types, SNR_threshold, verbose=False)
     else:
         phases_meas = meas[0];  ampls_meas = meas[1]
         times = meas[2];        matrices_meas = meas[3]
     
     # Calculate RSA matrices for simulated data
-    matrices_simu = {}; phases = {}; ampls= {}; TSSS = {}
+    matrices_simu = {}; phases = {}; ampls= {}; TSSS = {}; 
     zscores = np.zeros((len(ch_types), 3))  # zscore of the correlation ch_type*amp/phase/cplx
     R2_all = np.zeros((len(ch_types), 3)) # ch_type*amp/phase/cplx/combined
     pval_all = np.zeros((len(ch_types), 3))
     SSR = np.zeros((len(ch_types), 3)) 
     for ch, ch_type in enumerate(ch_types):
-        phases_simu, ampls_simu, times, matrices_simu[ch_type] = create_RSA_matrices(entry, ev_proj, ch_type, verbose)
+        phases_simu, ampls_simu, times, matrices_simu[ch_type], SNR_simu = create_RSA_matrices(entry, ev_proj, ch_type, SNR_threshold=1, verbose=verbose)
         phases[ch_type] = np.stack((phases_meas[ch_type], phases_simu)) # meas/simu
         ampls[ch_type] = np.stack((ampls_meas[ch_type], ampls_simu))
         
@@ -410,6 +431,10 @@ def compare_meas_simu(entry, ev_proj, meas= 'to_compute', ch_types = ['mag', 'gr
         for i, data in enumerate(['amplitude', 'phase', 'complex']):
             meas = matrices_meas[ch_type][i][msk_tri]
             simu = matrices_simu[ch_type][i][msk_tri]
+            
+            # Remove nan
+            msk_nonan = np.invert(np.isnan(meas))
+            meas = meas[msk_nonan]; simu= simu[msk_nonan]
             
             if data == 'amplitude':
                 R2, pval = scistats.spearmanr(meas, simu)
@@ -428,7 +453,7 @@ def compare_meas_simu(entry, ev_proj, meas= 'to_compute', ch_types = ['mag', 'gr
                 pval = scistats.t.sf(tscore, df) 
                 
                 # Calculate TS-SS distance metric between complex meas and simu
-                TSSS[ch] = TS_SS(meas, simu)
+                TSSS[ch_type] = TS_SS(meas, simu)
                               
             # Store statistics    
             R2_all[ch,i] = R2 
@@ -437,7 +462,7 @@ def compare_meas_simu(entry, ev_proj, meas= 'to_compute', ch_types = ['mag', 'gr
         # Compute the SSR for complex values as the sum of SSR for phase and amp
         SSR[ch,2] = SSR[ch,0] + SSR[ch,1]     
     
-    return phases, ampls, times, zscores, R2_all, pval_all, matrices_meas, matrices_simu, SSR, TSSS
+    return phases, ampls, times, zscores, R2_all, pval_all, matrices_meas, matrices_simu, SSR, TSSS, SNR_meas
 
 
 # def compare_meas_simu(entry, ev_proj, ev_meas, verbose = False):
