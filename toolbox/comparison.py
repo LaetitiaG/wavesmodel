@@ -6,6 +6,17 @@ from numba import jit
 
 #
 
+def complex_corr(meas, simu):
+    R2 = np.abs(np.corrcoef(meas, simu))[1, 0]
+    # fisher Z (ok for spearman when N>10)  Kanji 2006 as ref too
+    zscore = 0.5 * np.log((1 + R2) / (1 - R2))  
+    df = len(meas) - 2
+    tscore = R2 * np.sqrt(df) / np.sqrt(1 - R2 * R2)  # Kanji 2006
+    pval = scistats.t.sf(tscore, df) 
+    
+    return R2, zscore, pval
+                
+                
 def circular_corr(phases1, phases2):
     # from Topics in Circular Statistics (Jammalamadaka & Sengupta, 2001, World Scientific)
     m1 = circular_mean(phases1)
@@ -173,17 +184,22 @@ def create_RSA_matrices(entry, evoked, ch_type, SNR_threshold = 1, verbose=False
     phases = np.squeeze(phase[0, :, freqs == fclose])
     ampls = np.squeeze(amp[0, :, freqs == fclose])
     times = ev_ch.times
+    
+    # Crop to 0.5 to 2sec to get stationary signal
     msk_t = times > tmin_crop
+    phases = phases[:,msk_t]
+    ampls = ampls[:, msk_t]
 
     # Calculate SNR for each channel
     noise = np.mean(np.squeeze(amp[0, :, (freqs == fclose-1.5) | (freqs == fclose+1.5)]),0)
+    noise = noise[:, msk_t]
     if ch_type == 'grad':
         inds1 = mne.pick_types(ev_ch.info, meg='planar1', eeg=False)
         inds2 = mne.pick_types(ev_ch.info, meg='planar2', eeg=False)
         SNR = (ampls[inds1]/noise[inds1] + ampls[inds2]/noise[inds2])/2
     else:
         SNR = ampls/noise
-    SNR = np.mean(SNR[:,msk_t],1)
+    SNR = np.mean(SNR,1)
     
     ###### AMPLITUDE ######
     # Compute a matrix of relative amplitude between sensors for each sensor type
@@ -195,19 +211,18 @@ def create_RSA_matrices(entry, evoked, ch_type, SNR_threshold = 1, verbose=False
         cov_tmp = np.zeros((2, len(inds1), len(inds2)))
         for j in range(len(ind_grad)):
             inds = ind_grad[j]
-            ampls_ch = ampls[inds][:, msk_t]
+            ampls_ch = ampls[inds]
             # loop across rows
             for r in range(len(inds)):
                 for c in range(len(inds)):  # loop across column
                     cov_tmp[j, r, c] = np.mean(np.log(ampls_ch[r] / ampls_ch[c]))
         matrices[0] = cov_tmp.mean(0)
     else:
-        ampls_ch = ampls[:, msk_t]
         # loop across rows
         for r in range(Nchan):
             for c in range(Nchan):  # loop across column
                 # average across time and take the log to have a symmetrical matrix
-                matrices[0][r, c] = np.mean(np.log(ampls_ch[r] / ampls_ch[c]))  
+                matrices[0][r, c] = np.mean(np.log(ampls[r] / ampls[c]))  
     
     ###### PHASE ######
     # Compute a matrix of relative phase between sensors for each sensor type
@@ -215,8 +230,8 @@ def create_RSA_matrices(entry, evoked, ch_type, SNR_threshold = 1, verbose=False
         # do the average of relative amplitude between grad1 and grad2
         inds1 = mne.pick_types(ev_ch.info, meg='planar1', eeg=False)
         inds2 = mne.pick_types(ev_ch.info, meg='planar2', eeg=False)
-        phases_1 = phases[inds1][:, msk_t]
-        phases_2 = phases[inds2][:, msk_t]
+        phases_1 = phases[inds1]
+        phases_2 = phases[inds2]
         # loop across rows
         for r in range(len(inds1)):
             for c in range(len(inds1)):  # loop across column
@@ -229,11 +244,10 @@ def create_RSA_matrices(entry, evoked, ch_type, SNR_threshold = 1, verbose=False
                 matrices[1][r, c] = circular_mean(np.array([circular_mean(d11), circular_mean(d22)]))
 
     else:
-        phases_ch = phases[:, msk_t]
         # loop across rows
         for r in range(Nchan):
             for c in range(Nchan):  # loop across column
-                d1 = phases_ch[r] - phases_ch[c]
+                d1 = phases[r] - phases[c]
                 d = (d1 + np.pi) % (2 * np.pi) - np.pi  # put between -pi and pi
                 matrices[1][r, c] = circular_mean(d)
 
@@ -254,7 +268,7 @@ def from_meas_evoked_to_matrix(entry, ch_types = ['mag', 'grad', 'eeg'], SNR_thr
     
     # Check that ch_types is a list
     if not(isinstance(ch_types, list)):
-        print('ch_types should be a list, e.g. ["mag", "grad", "eeg"]')
+       raise ValueError('ch_types should be a list, e.g. ["mag", "grad", "eeg"]')
         
     # Read measured data evoked
     evoked = mne.read_evokeds(entry.measured, verbose=verbose)[0]
@@ -417,7 +431,11 @@ def compare_meas_simu(entry, ev_proj, meas= 'to_compute', ch_types = ['mag', 'gr
     zscores = np.zeros((len(ch_types), 3))  # zscore of the correlation ch_type*amp/phase/cplx
     R2_all = np.zeros((len(ch_types), 3)) # ch_type*amp/phase/cplx/combined
     pval_all = np.zeros((len(ch_types), 3))
-    SSR = np.zeros((len(ch_types), 3)) 
+    SSR = np.zeros((len(ch_types), 3))
+    zscores_reref = np.zeros((len(ch_types)))  
+    R2_reref = np.zeros((len(ch_types))) 
+    pval_reref = np.zeros((len(ch_types)))
+    SSR_reref = np.zeros((len(ch_types)))    
     for ch, ch_type in enumerate(ch_types):
         phases_simu, ampls_simu, times, matrices_simu[ch_type], SNR_simu = create_RSA_matrices(entry, ev_proj, ch_type, SNR_threshold=1, verbose=verbose)
         phases[ch_type] = np.stack((phases_meas[ch_type], phases_simu)) # meas/simu
@@ -445,12 +463,7 @@ def compare_meas_simu(entry, ev_proj, meas= 'to_compute', ch_types = ['mag', 'gr
                 zscores[ch,i] = zscore
                 SSR[ch,i] = np.sum(circular_diff(meas,simu)**2)
             elif data == 'complex':
-                R2 = np.abs(np.corrcoef(meas, simu))[1, 0]
-                # fisher Z (ok for spearman when N>10)  Kanji 2006 as ref too
-                zscores[ch,i] = 0.5 * np.log((1 + R2) / (1 - R2))  
-                df = len(meas) - 2
-                tscore = R2 * np.sqrt(df) / np.sqrt(1 - R2 * R2)  # Kanji 2006
-                pval = scistats.t.sf(tscore, df) 
+                R2, zscores[ch,i], pval = complex_corr(meas, simu)
                 
                 # Calculate TS-SS distance metric between complex meas and simu
                 TSSS[ch_type] = TS_SS(meas, simu)
@@ -461,8 +474,29 @@ def compare_meas_simu(entry, ev_proj, meas= 'to_compute', ch_types = ['mag', 'gr
         
         # Compute the SSR for complex values as the sum of SSR for phase and amp
         SSR[ch,2] = SSR[ch,0] + SSR[ch,1]     
-    
-    return phases, ampls, times, zscores, R2_all, pval_all, matrices_meas, matrices_simu, SSR, TSSS, SNR_meas
+        
+        ## Try new pipeline with rereferenced signal instead                              
+        # Find channel with best SNR
+        bestCh_ind = np.argmax(SNR_meas[ch_type])
+        Nchan = len(SNR_meas[ch_type])
+
+        # Normalize amplitude and phase (meas and simu) relative to this sensor, average across time
+        rerefA = np.zeros((2, Nchan)); rerefP = np.zeros((2, Nchan))
+        for i in range(2):
+            for c_ind in range(Nchan):
+                rerefA[i,c_ind] = np.mean(ampls[ch_type][i,c_ind]/ampls[ch_type][i, bestCh_ind])
+                rerefP[i,c_ind] = circular_mean(circular_diff(phases[ch_type][i,c_ind], phases[ch_type][i,bestCh_ind]))
+
+        # Reconstruct reref phase/ampli per channel
+        cplxSig = rerefA * np.exp(rerefP * 1j)
+        
+        # Correlation and SSR
+        R2_reref[ch], zscores_reref[ch], pval_reref[ch] = complex_corr(cplxSig[0], cplxSig[1])
+        SSR_real = np.sum((np.real(cplxSig[0]) - np.real(cplxSig[1]))**2)
+        SSR_imag = np.sum((np.imag(cplxSig[0]) - np.imag(cplxSig[1]))**2)
+        SSR_reref[ch] = SSR_real + SSR_imag                              
+                
+    return phases, ampls, times, zscores, R2_all, pval_all, matrices_meas, matrices_simu, SSR, TSSS, SNR_meas, R2_reref, zscores_reref, pval_reref, SSR_reref
 
 
 # def compare_meas_simu(entry, ev_proj, ev_meas, verbose = False):
