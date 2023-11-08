@@ -498,7 +498,96 @@ def compare_meas_simu(entry, ev_proj, meas= 'to_compute', ch_types = ['mag', 'gr
                 
     return phases, ampls, times, zscores, R2_all, pval_all, matrices_meas, matrices_simu, SSR, TSSS, SNR_meas, R2_reref, zscores_reref, pval_reref, SSR_reref
 
+def compare_meas_simu_V2(entry, ev_proj, verbose=False):
+    '''
+    Compare the measured and projected signals after rereferencing
+    each signal to a global reference (average across all sensors).
+    Return single-sensor correlations coefficients between rereferenced signals.
 
+    Parameters
+    ----------
+    entry : class
+        Class for entry values
+    ev_proj : EVOKED
+        Evoked instance of the model predictions.
+
+    Returns
+    -------
+
+        
+    '''
+
+    ch_types = ['mag', 'grad', 'eeg'] 
+    chansel = {'mag': ['mag', False],'grad': ['grad', False],'grad1': ['planar1', False],'grad2': ['planar2', False],'eeg': [False, True]}
+    
+    # Read measured data evoked
+    evoked = mne.read_evokeds(entry.measured, verbose=verbose)[0]
+    evoked.crop(tmin=0, tmax=2)
+    Nt = len(evoked.times); Fs = evoked.info['sfreq']
+    Nchan = len(evoked.data)
+    
+    # Calculate FFT
+    fft_meas = np.fft.fft(evoked.data, axis = 1)
+    freqs = np.fft.fftfreq(Nt, 1/Fs)
+
+    # Extract phase and amplitude at stimulation freq
+    fstim = entry.simulation_params.freq_temp
+    ind = np.nanargmin(np.abs(freqs - fstim)) # find closest freq
+    phase_meas = np.angle(fft_meas[:,ind])  
+    ampl_meas = 2*np.abs(fft_meas[:,ind])/Nt
+
+    # Calculate FFT on predicted data
+    fft = np.fft.fft(ev_proj.data, axis = 1)
+    ampl = 2*np.abs(fft[:,ind])/Nt
+    phase = np.angle(fft[:,ind]) 
+    
+    # Store phase shift meas-proj 
+    phase_shift = circular_diff(phase_meas, phase) 
+        
+    thetaRef = np.zeros(len(ch_types), dtype='complex_'); aRef = np.zeros(len(ch_types))
+    R2_glob = np.zeros(len(ch_types));  pval_glob = np.zeros(len(ch_types))
+    reref_proj = np.zeros(np.shape(ev_proj.data))
+    R2 = np.zeros((Nchan)); pval = np.zeros((Nchan)); SSR = np.zeros((Nchan))
+    for c, ch_type in enumerate(ch_types):
+        
+        # Calculate average measured phase and amplitude 
+        inds_chan = mne.pick_types(evoked.info, meg = chansel[ch_type][0], eeg = chansel[ch_type][1])
+        #thetaRef[c]  = circular_mean(phase_meas[inds_chan])
+        cplex_mean_meas = np.mean(ampl_meas[inds_chan]*np.exp(phase_meas[inds_chan]*1j))
+        cplex_mean_proj = np.mean(ampl[inds_chan]*np.exp(phase[inds_chan]*1j))
+
+        #thetaRef[c]  = circular_mean(circular_diff(phase_meas[inds_chan], phase[inds_chan])) # initial one
+        #aRef[c] = np.mean(ampl_meas[inds_chan]) - np.mean(ampl[inds_chan]) # initial one
+        thetaRef[c] = circular_diff(np.angle(cplex_mean_meas), np.angle(cplex_mean_proj))
+        #thetaRef[c] = cplex_mean_meas - cplex_mean_proj
+        aRef[c] = np.mean(ampl_meas[inds_chan])/np.mean(ampl[inds_chan])
+        
+        # Correlate sensor per sensor
+        for ch in inds_chan:
+            # Reconstruct predicted data after phase-rereferencing
+            reref_proj[ch] = (aRef[c] + ampl[ch])*np.cos(2*np.pi*fstim*ev_proj.times + phase[ch] + thetaRef[c])
+        
+            # Correlate measured with reref predicted signals
+            R2[ch], pval[ch] = scistats.spearmanr(evoked.data[ch], reref_proj[ch])
+            SSR[ch] = np.sum((evoked.data[ch]-reref_proj[ch])**2)
+            
+            # # Correlate 5Hz measure with reref predicted signals
+            # meas_5hz = ampl_meas[ch]*np.cos(2*np.pi*fstim*ev_proj.times + phase_meas[ch])
+            # R2[ch], pval[ch] = scistats.spearmanr(meas_5hz, reref_proj[ch])
+            # SSR[ch] = np.sum((meas_5hz-reref_proj[ch])**2)
+            
+        # Single correlation for all sensor together
+        #R2_glob[c], pval_glob[c] = scistats.spearmanr(evoked.data.flatten(), reref_proj.flatten())
+        
+        # Single correlation for all sensor together (no rereferencing needed) 
+        meas = ampl_meas[inds_chan]*np.exp(phase_meas[inds_chan]*1j)
+        pred = ampl[inds_chan]*np.exp((phase[inds_chan])*1j)
+        R2_glob[c], z, pval_glob[c] = complex_corr(meas, pred)
+
+    
+    return R2, pval, SSR, fft_meas, freqs, thetaRef, aRef, R2_glob, pval_glob, reref_proj, phase_shift, ampl_meas, phase_meas, ampl, phase
+    
+    
 # def compare_meas_simu(entry, ev_proj, ev_meas, verbose = False):
 #     '''
 #     Compare the relationships between pairs of sensors in terms of amplitude, phase
