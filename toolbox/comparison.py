@@ -4,7 +4,10 @@ import scipy.stats as scistats
 from math import sqrt, atan2, pi, floor, exp
 from numba import jit
 
-#
+# global variables
+ch_types = ['mag', 'grad', 'eeg'] 
+chansel = {'mag': ['mag', False],'grad': ['grad', False],'grad1': ['planar1', False],'grad2': ['planar2', False],'eeg': [False, True]}
+
 
 def complex_corr(meas, simu):
     R2 = np.abs(np.corrcoef(meas, simu))[1, 0]
@@ -498,6 +501,51 @@ def compare_meas_simu(entry, ev_proj, meas= 'to_compute', ch_types = ['mag', 'gr
                 
     return phases, ampls, times, zscores, R2_all, pval_all, matrices_meas, matrices_simu, SSR, TSSS, SNR_meas, R2_reref, zscores_reref, pval_reref, SSR_reref
 
+def global_phase(entries, ev_projs, verbose=False):
+    
+    # entries: list of entries for all conditions across which the phse should be calculated
+    # ev_proj: list of evoked for each condition
+    
+    thetaRef = np.zeros((len(entries), len(ch_types),2), dtype='complex_'); aRef = np.zeros(len(ch_types))
+    cplex_mean_meas = np.zeros((len(entries), len(ch_types)), dtype='complex_');
+    cplex_mean_proj = np.zeros((len(entries), len(ch_types)), dtype='complex_');
+    for e,(entry, ev_proj) in enumerate(zip(entries, ev_projs)):
+        
+        # Read measured data evoked
+        evoked = mne.read_evokeds(entry.measured, verbose=verbose)[0]
+        evoked.crop(tmin=0, tmax=2)
+        Nt = len(evoked.times); Fs = evoked.info['sfreq']
+        Nchan = len(evoked.data)
+      
+        # Calculate FFT
+        fft_meas = np.fft.fft(evoked.data, axis = 1)
+        freqs = np.fft.fftfreq(Nt, 1/Fs)
+    
+        # Extract phase and amplitude at stimulation freq
+        fstim = entry.simulation_params.freq_temp
+        ind = np.nanargmin(np.abs(freqs - fstim)) # find closest freq
+        phase_meas = np.angle(fft_meas[:,ind])  
+        ampl_meas = 2*np.abs(fft_meas[:,ind])/Nt
+    
+        # Calculate FFT on predicted data
+        fft = np.fft.fft(ev_proj.data, axis = 1)
+        ampl = 2*np.abs(fft[:,ind])/Nt
+        phase = np.angle(fft[:,ind]) 
+        
+        # Store phase shift meas-proj 
+        for c, ch_type in enumerate(ch_types):
+            
+            # Calculate average measured phase and amplitude 
+            inds_chan = mne.pick_types(evoked.info, meg = chansel[ch_type][0], eeg = chansel[ch_type][1])
+            cplex_mean_meas[e,c] = np.mean(ampl_meas[inds_chan]*np.exp(phase_meas[inds_chan]*1j)) #/ np.mean(ampl_meas[inds_chan])
+            cplex_mean_proj[e,c] = np.mean(ampl[inds_chan]*np.exp(phase[inds_chan]*1j)) #/ np.mean(ampl[inds_chan])
+    
+    thetaRef = circular_diff( np.angle(np.mean(cplex_mean_meas, 0)), np.angle(np.mean(cplex_mean_proj, 0)) )
+    aRef = np.abs(np.mean(cplex_mean_meas, 0))/np.abs(np.mean(cplex_mean_proj, 0))
+    
+    return thetaRef, aRef
+    
+
 def compare_meas_simu_V2(entry, ev_proj, verbose=False):
     '''
     Compare the measured and projected signals after rereferencing
@@ -517,9 +565,6 @@ def compare_meas_simu_V2(entry, ev_proj, verbose=False):
         
     '''
 
-    ch_types = ['mag', 'grad', 'eeg'] 
-    chansel = {'mag': ['mag', False],'grad': ['grad', False],'grad1': ['planar1', False],'grad2': ['planar2', False],'eeg': [False, True]}
-    
     # Read measured data evoked
     evoked = mne.read_evokeds(entry.measured, verbose=verbose)[0]
     evoked.crop(tmin=0, tmax=2)
@@ -544,7 +589,7 @@ def compare_meas_simu_V2(entry, ev_proj, verbose=False):
     # Store phase shift meas-proj 
     phase_shift = circular_diff(phase_meas, phase) 
         
-    thetaRef = np.zeros(len(ch_types), dtype='complex_'); aRef = np.zeros(len(ch_types))
+    thetaRef = np.zeros((len(ch_types)), dtype='complex_'); aRef = np.zeros(len(ch_types))
     R2_glob = np.zeros(len(ch_types));  pval_glob = np.zeros(len(ch_types))
     reref_proj = np.zeros(np.shape(ev_proj.data))
     R2 = np.zeros((Nchan)); pval = np.zeros((Nchan)); SSR = np.zeros((Nchan))
@@ -553,12 +598,12 @@ def compare_meas_simu_V2(entry, ev_proj, verbose=False):
         # Calculate average measured phase and amplitude 
         inds_chan = mne.pick_types(evoked.info, meg = chansel[ch_type][0], eeg = chansel[ch_type][1])
         #thetaRef[c]  = circular_mean(phase_meas[inds_chan])
-        cplex_mean_meas = np.mean(ampl_meas[inds_chan]*np.exp(phase_meas[inds_chan]*1j))
-        cplex_mean_proj = np.mean(ampl[inds_chan]*np.exp(phase[inds_chan]*1j))
+        cplex_mean_meas = np.mean(ampl_meas[inds_chan]*np.exp(phase_meas[inds_chan]*1j)) #/ np.mean(ampl_meas[inds_chan])
+        cplex_mean_proj = np.mean(ampl[inds_chan]*np.exp(phase[inds_chan]*1j)) #/ np.mean(ampl[inds_chan])
 
         #thetaRef[c]  = circular_mean(circular_diff(phase_meas[inds_chan], phase[inds_chan])) # initial one
         #aRef[c] = np.mean(ampl_meas[inds_chan]) - np.mean(ampl[inds_chan]) # initial one
-        thetaRef[c] = circular_diff(np.angle(cplex_mean_meas), np.angle(cplex_mean_proj))
+        thetaRef[c] = circular_diff( np.angle(cplex_mean_meas), np.angle(cplex_mean_proj) )
         #thetaRef[c] = cplex_mean_meas - cplex_mean_proj
         aRef[c] = np.mean(ampl_meas[inds_chan])/np.mean(ampl[inds_chan])
         
