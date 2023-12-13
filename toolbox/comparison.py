@@ -540,8 +540,9 @@ def global_phase(entries, ev_projs, verbose=False):
             cplex_mean_meas[e,c] = np.mean(ampl_meas[inds_chan]*np.exp(phase_meas[inds_chan]*1j)) #/ np.mean(ampl_meas[inds_chan])
             cplex_mean_proj[e,c] = np.mean(ampl[inds_chan]*np.exp(phase[inds_chan]*1j)) #/ np.mean(ampl[inds_chan])
     
+            aRef = np.mean(ampl_meas[inds_chan])/ np.mean(ampl[inds_chan])
     thetaRef = circular_diff( np.angle(np.mean(cplex_mean_meas, 0)), np.angle(np.mean(cplex_mean_proj, 0)) )
-    aRef = np.abs(np.mean(cplex_mean_meas, 0))/np.abs(np.mean(cplex_mean_proj, 0))
+    #aRef = np.abs(np.mean(cplex_mean_meas, 0))/np.abs(np.mean(cplex_mean_proj, 0)) # did not work for eeg
     
     return thetaRef, aRef
     
