@@ -1,18 +1,15 @@
-=======
-Toolbox
-=======
+# wavesmodel
+ 
+These scripts aims to provide a generative model of traveling waves within retinotopic areas. 
+We show here (Grabot et al., bioRxiv) a proof-of-concept that this encoding approach is able to characterize local traveling waves in MEG-EEG data.
+Traveling waves are first modeled using traveling waves equation mapped on the primary visual cortex. The simulated brain activity is then projected onto the sensors (MEG and EEG). The predicted activity within sensors can then be compared to empirical data. Different models testing different hypothesis on the propagation of neural activity (e.g. with different temporal or spatial frequency, or a specific direction) can be tested against each other.
 
-The [name] toolbox is a tool dedicated to the analysis of locale travelling waves.
-At this stage, the program is still under development and the available models are limited.
-However, you can use it to explore local travelling waves in the visual cortex.
-
-
-Setup python environment using conda
+Cite this work
 ------------------------------------
-To create an environment from an environment.yml file, run:
+If you use this code in your projects, please cite the following reference:
 
-.. code-block:: shell
+*Grabot L, Merholz G, Winawer J, Heeger DJ, Dugué L (2024, bioRxiv) Traveling Waves in the Human Visual Cortex: a MEG-EEG Model-Based Approach.*
 
-    conda env create -f environment.yml
-
-By default, the name of the environment will be whatever the name of the source environment was; you can change the name by adding a -n <name> option to the conda env create command.
+Acknowledgments
+------------------------------------
+This project has received funding from the European Research Council (ERC) under the European Union’s Horizon 2020 research and innovation programme (grant agreement No 852139 - Laura Dugué). 
