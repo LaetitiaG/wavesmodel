@@ -4,7 +4,22 @@ import scipy.stats as scistats
 from math import sqrt, atan2, pi, floor, exp
 from numba import jit
 
+# global variables
+ch_types = ['mag', 'grad', 'eeg'] 
+chansel = {'mag': ['mag', False],'grad': ['grad', False],'grad1': ['planar1', False],'grad2': ['planar2', False],'eeg': [False, True]}
 
+
+def complex_corr(meas, simu):
+    R2 = np.abs(np.corrcoef(meas, simu))[1, 0]
+    # fisher Z (ok for spearman when N>10)  Kanji 2006 as ref too
+    zscore = 0.5 * np.log((1 + R2) / (1 - R2))  
+    df = len(meas) - 2
+    tscore = R2 * np.sqrt(df) / np.sqrt(1 - R2 * R2)  # Kanji 2006
+    pval = scistats.t.sf(tscore, df) 
+    
+    return R2, zscore, pval
+                
+                
 def circular_corr(phases1, phases2):
     # from Topics in Circular Statistics (Jammalamadaka & Sengupta, 2001, World Scientific)
     m1 = circular_mean(phases1)
@@ -114,7 +129,7 @@ def TS_SS(v1, v2):
     
 
     
-def create_RSA_matrices(entry, evoked, ch_type, verbose=False):
+def create_RSA_matrices(entry, evoked, ch_type, SNR_threshold = 1, verbose=False):
     """
     Create RSA matrices for phase and amplitude relationship between each pair
     of sensors of the given channel type.
@@ -137,6 +152,9 @@ def create_RSA_matrices(entry, evoked, ch_type, verbose=False):
         Times of the evoked files.    
     matrices : ARRAY amplitude/phase/complex*Nchan*Nchan
         RSA-like matrices for each feature of the signal (phase/ampl/cplx).
+    SNR : ARRAY Nchan
+        Signal Over Noise ratio of the amplitude at the stimulation frequency sf, 
+        compared to the amplitude at (fs-1) and (fs+1), per channel.
 
     """
 
@@ -168,10 +186,24 @@ def create_RSA_matrices(entry, evoked, ch_type, verbose=False):
     fclose = freqs[np.nanargmin(np.abs(freqs - fstim))] # find closest freq
     phases = np.squeeze(phase[0, :, freqs == fclose])
     ampls = np.squeeze(amp[0, :, freqs == fclose])
-
     times = ev_ch.times
+    
+    # Crop to 0.5 to 2sec to get stationary signal
     msk_t = times > tmin_crop
+    phases = phases[:,msk_t]
+    ampls = ampls[:, msk_t]
 
+    # Calculate SNR for each channel
+    noise = np.mean(np.squeeze(amp[0, :, (freqs == fclose-1.5) | (freqs == fclose+1.5)]),0)
+    noise = noise[:, msk_t]
+    if ch_type == 'grad':
+        inds1 = mne.pick_types(ev_ch.info, meg='planar1', eeg=False)
+        inds2 = mne.pick_types(ev_ch.info, meg='planar2', eeg=False)
+        SNR = (ampls[inds1]/noise[inds1] + ampls[inds2]/noise[inds2])/2
+    else:
+        SNR = ampls/noise
+    SNR = np.mean(SNR,1)
+    
     ###### AMPLITUDE ######
     # Compute a matrix of relative amplitude between sensors for each sensor type
     if ch_type == 'grad':
@@ -182,19 +214,18 @@ def create_RSA_matrices(entry, evoked, ch_type, verbose=False):
         cov_tmp = np.zeros((2, len(inds1), len(inds2)))
         for j in range(len(ind_grad)):
             inds = ind_grad[j]
-            ampls_ch = ampls[inds][:, msk_t]
+            ampls_ch = ampls[inds]
             # loop across rows
             for r in range(len(inds)):
                 for c in range(len(inds)):  # loop across column
                     cov_tmp[j, r, c] = np.mean(np.log(ampls_ch[r] / ampls_ch[c]))
         matrices[0] = cov_tmp.mean(0)
     else:
-        ampls_ch = ampls[:, msk_t]
         # loop across rows
         for r in range(Nchan):
             for c in range(Nchan):  # loop across column
                 # average across time and take the log to have a symmetrical matrix
-                matrices[0][r, c] = np.mean(np.log(ampls_ch[r] / ampls_ch[c]))  
+                matrices[0][r, c] = np.mean(np.log(ampls[r] / ampls[c]))  
     
     ###### PHASE ######
     # Compute a matrix of relative phase between sensors for each sensor type
@@ -202,8 +233,8 @@ def create_RSA_matrices(entry, evoked, ch_type, verbose=False):
         # do the average of relative amplitude between grad1 and grad2
         inds1 = mne.pick_types(ev_ch.info, meg='planar1', eeg=False)
         inds2 = mne.pick_types(ev_ch.info, meg='planar2', eeg=False)
-        phases_1 = phases[inds1][:, msk_t]
-        phases_2 = phases[inds2][:, msk_t]
+        phases_1 = phases[inds1]
+        phases_2 = phases[inds2]
         # loop across rows
         for r in range(len(inds1)):
             for c in range(len(inds1)):  # loop across column
@@ -216,11 +247,10 @@ def create_RSA_matrices(entry, evoked, ch_type, verbose=False):
                 matrices[1][r, c] = circular_mean(np.array([circular_mean(d11), circular_mean(d22)]))
 
     else:
-        phases_ch = phases[:, msk_t]
         # loop across rows
         for r in range(Nchan):
             for c in range(Nchan):  # loop across column
-                d1 = phases_ch[r] - phases_ch[c]
+                d1 = phases[r] - phases[c]
                 d = (d1 + np.pi) % (2 * np.pi) - np.pi  # put between -pi and pi
                 matrices[1][r, c] = circular_mean(d)
 
@@ -228,26 +258,32 @@ def create_RSA_matrices(entry, evoked, ch_type, verbose=False):
     # Compute a complex matrix combining amplitude and phase
     matrices[2] = matrices[0] * np.exp(matrices[1] * 1j)
     
-    return phases, ampls, times,matrices    
+    # Replace values with too low SNR by NaN
+    msk_SNR = SNR < SNR_threshold
+    msk_mat = np.tile(msk_SNR, (len(msk_SNR), 1)) & np.tile(msk_SNR[:,np.newaxis], (1,len(msk_SNR)))
+    matrices[:,msk_mat] = np.NaN
+    print('{}: {:.1f}% of values are discarded due to low SNR (<{})'.format(ch_type, np.sum(msk_SNR)/len(msk_SNR)*100 , SNR_threshold))
+    
+    return phases, ampls, times,matrices, SNR    
 
 
-def from_meas_evoked_to_matrix(entry, ch_types = ['mag', 'grad', 'eeg'], verbose=False):
+def from_meas_evoked_to_matrix(entry, ch_types = ['mag', 'grad', 'eeg'], SNR_threshold = 1, verbose=False):
     
     # Check that ch_types is a list
     if not(isinstance(ch_types, list)):
-        print('ch_types should be a list, e.g. ["mag", "grad", "eeg"]')
+       raise ValueError('ch_types should be a list, e.g. ["mag", "grad", "eeg"]')
         
     # Read measured data evoked
     evoked = mne.read_evokeds(entry.measured, verbose=verbose)[0]
     evoked.crop(tmin=0, tmax=2)
     
     # Create RSA matrices for the required channels
-    matrices = {} 
+    matrices = {} ; SNR = {}
     phases = {}; ampls= {}    
     for ch, ch_type in enumerate(ch_types):
-        phases[ch_type], ampls[ch_type], times, matrices[ch_type] = create_RSA_matrices(entry, evoked, ch_type, verbose)
+        phases[ch_type], ampls[ch_type], times, matrices[ch_type], SNR[ch_type] = create_RSA_matrices(entry, evoked, ch_type, SNR_threshold, verbose)
         
-    return phases, ampls, times, matrices
+    return phases, ampls, times, matrices, SNR
     
 # def compare_meas_simu_oneChType(entry, ev_proj, ev_meas, ch_type, verbose=False): ### OLD
 #     '''
@@ -339,7 +375,7 @@ def from_meas_evoked_to_matrix(entry, ch_types = ['mag', 'grad', 'eeg'], verbose
     
 #     return phases, ampls, times, zscores, R2_all, pval_all, matrices_meas, matrices_simu, SSR
 
-def compare_meas_simu(entry, ev_proj, meas= 'to_compute', ch_types = ['mag', 'grad', 'eeg'], verbose=False):
+def compare_meas_simu(entry, ev_proj, meas= 'to_compute', ch_types = ['mag', 'grad', 'eeg'], SNR_threshold = 1, verbose=False):
     '''
     Compare the relationships between pairs of sensors in terms of amplitude, phase
     or complex values between measured and simulated signal for a given channel type.
@@ -354,6 +390,9 @@ def compare_meas_simu(entry, ev_proj, meas= 'to_compute', ch_types = ['mag', 'gr
         If 'to_compute', matrices are calculated from entry. 
     ch_type : STRING
         'mag', 'grad', 'eeg'
+    SNR_threshold : FLOAT
+        If the SNR of measured data in a given sensor is below this value, it is
+        not considered in the matrices (hence NaN values in the matrix). Default to 1.    
 
     Returns
     -------
@@ -385,19 +424,23 @@ def compare_meas_simu(entry, ev_proj, meas= 'to_compute', ch_types = ['mag', 'gr
 
     # Calculate RSA matrices for measured data
     if meas == 'to_compute':
-        phases_meas, ampls_meas, times, matrices_meas = from_meas_evoked_to_matrix(entry, ch_types, verbose=False)
+        phases_meas, ampls_meas, times, matrices_meas, SNR_meas = from_meas_evoked_to_matrix(entry, ch_types, SNR_threshold, verbose=False)
     else:
         phases_meas = meas[0];  ampls_meas = meas[1]
         times = meas[2];        matrices_meas = meas[3]
     
     # Calculate RSA matrices for simulated data
-    matrices_simu = {}; phases = {}; ampls= {}; TSSS = {}
+    matrices_simu = {}; phases = {}; ampls= {}; TSSS = {}; 
     zscores = np.zeros((len(ch_types), 3))  # zscore of the correlation ch_type*amp/phase/cplx
     R2_all = np.zeros((len(ch_types), 3)) # ch_type*amp/phase/cplx/combined
     pval_all = np.zeros((len(ch_types), 3))
-    SSR = np.zeros((len(ch_types), 3)) 
+    SSR = np.zeros((len(ch_types), 3))
+    zscores_reref = np.zeros((len(ch_types)))  
+    R2_reref = np.zeros((len(ch_types))) 
+    pval_reref = np.zeros((len(ch_types)))
+    SSR_reref = np.zeros((len(ch_types)))    
     for ch, ch_type in enumerate(ch_types):
-        phases_simu, ampls_simu, times, matrices_simu[ch_type] = create_RSA_matrices(entry, ev_proj, ch_type, verbose)
+        phases_simu, ampls_simu, times, matrices_simu[ch_type], SNR_simu = create_RSA_matrices(entry, ev_proj, ch_type, SNR_threshold=1, verbose=verbose)
         phases[ch_type] = np.stack((phases_meas[ch_type], phases_simu)) # meas/simu
         ampls[ch_type] = np.stack((ampls_meas[ch_type], ampls_simu))
         
@@ -410,6 +453,10 @@ def compare_meas_simu(entry, ev_proj, meas= 'to_compute', ch_types = ['mag', 'gr
             meas = matrices_meas[ch_type][i][msk_tri]
             simu = matrices_simu[ch_type][i][msk_tri]
             
+            # Remove nan
+            msk_nonan = np.invert(np.isnan(meas))
+            meas = meas[msk_nonan]; simu= simu[msk_nonan]
+            
             if data == 'amplitude':
                 R2, pval = scistats.spearmanr(meas, simu)
                 zscores[ch,i] = 0.5 * np.log((1 + R2) / (1 - R2))  # fisher Z (ok for spearman when N>10)
@@ -419,15 +466,10 @@ def compare_meas_simu(entry, ev_proj, meas= 'to_compute', ch_types = ['mag', 'gr
                 zscores[ch,i] = zscore
                 SSR[ch,i] = np.sum(circular_diff(meas,simu)**2)
             elif data == 'complex':
-                R2 = np.abs(np.corrcoef(meas, simu))[1, 0]
-                # fisher Z (ok for spearman when N>10)  Kanji 2006 as ref too
-                zscores[ch,i] = 0.5 * np.log((1 + R2) / (1 - R2))  
-                df = len(meas) - 2
-                tscore = R2 * np.sqrt(df) / np.sqrt(1 - R2 * R2)  # Kanji 2006
-                pval = scistats.t.sf(tscore, df) 
+                R2, zscores[ch,i], pval = complex_corr(meas, simu)
                 
                 # Calculate TS-SS distance metric between complex meas and simu
-                TSSS[ch] = TS_SS(meas, simu)
+                TSSS[ch_type] = TS_SS(meas, simu)
                               
             # Store statistics    
             R2_all[ch,i] = R2 
@@ -435,9 +477,359 @@ def compare_meas_simu(entry, ev_proj, meas= 'to_compute', ch_types = ['mag', 'gr
         
         # Compute the SSR for complex values as the sum of SSR for phase and amp
         SSR[ch,2] = SSR[ch,0] + SSR[ch,1]     
-    
-    return phases, ampls, times, zscores, R2_all, pval_all, matrices_meas, matrices_simu, SSR, TSSS
+        
+        ## Try new pipeline with rereferenced signal instead                              
+        # Find channel with best SNR
+        bestCh_ind = np.argmax(SNR_meas[ch_type])
+        Nchan = len(SNR_meas[ch_type])
 
+        # Normalize amplitude and phase (meas and simu) relative to this sensor, average across time
+        rerefA = np.zeros((2, Nchan)); rerefP = np.zeros((2, Nchan))
+        for i in range(2):
+            for c_ind in range(Nchan):
+                rerefA[i,c_ind] = np.mean(ampls[ch_type][i,c_ind]/ampls[ch_type][i, bestCh_ind])
+                rerefP[i,c_ind] = circular_mean(circular_diff(phases[ch_type][i,c_ind], phases[ch_type][i,bestCh_ind]))
+
+        # Reconstruct reref phase/ampli per channel
+        cplxSig = rerefA * np.exp(rerefP * 1j)
+        
+        # Correlation and SSR
+        R2_reref[ch], zscores_reref[ch], pval_reref[ch] = complex_corr(cplxSig[0], cplxSig[1])
+        SSR_real = np.sum((np.real(cplxSig[0]) - np.real(cplxSig[1]))**2)
+        SSR_imag = np.sum((np.imag(cplxSig[0]) - np.imag(cplxSig[1]))**2)
+        SSR_reref[ch] = SSR_real + SSR_imag                              
+                
+    return phases, ampls, times, zscores, R2_all, pval_all, matrices_meas, matrices_simu, SSR, TSSS, SNR_meas, R2_reref, zscores_reref, pval_reref, SSR_reref
+
+def global_phase(entries, ev_projs, verbose=False):
+    
+    # entries: list of entries for all conditions across which the phse should be calculated
+    # ev_proj: list of evoked for each condition
+    
+    thetaRef = np.zeros((len(entries), len(ch_types),2), dtype='complex_'); aRef = np.zeros(len(ch_types))
+    cplex_mean_meas = np.zeros((len(entries), len(ch_types)), dtype='complex_');
+    cplex_mean_proj = np.zeros((len(entries), len(ch_types)), dtype='complex_');
+    for e,(entry, ev_proj) in enumerate(zip(entries, ev_projs)):
+        
+        # Read measured data evoked
+        evoked = mne.read_evokeds(entry.measured, verbose=verbose)[0]
+        evoked.crop(tmin=0, tmax=2)
+        Nt = len(evoked.times); Fs = evoked.info['sfreq']
+        Nchan = len(evoked.data)
+      
+        # Calculate FFT
+        fft_meas = np.fft.fft(evoked.data, axis = 1)
+        freqs = np.fft.fftfreq(Nt, 1/Fs)
+    
+        # Extract phase and amplitude at stimulation freq
+        fstim = entry.simulation_params.freq_temp
+        ind = np.nanargmin(np.abs(freqs - fstim)) # find closest freq
+        phase_meas = np.angle(fft_meas[:,ind])  
+        ampl_meas = 2*np.abs(fft_meas[:,ind])/Nt
+    
+        # Calculate FFT on predicted data
+        fft = np.fft.fft(ev_proj.data, axis = 1)
+        ampl = 2*np.abs(fft[:,ind])/Nt
+        phase = np.angle(fft[:,ind]) 
+        
+        # Store phase shift meas-proj 
+        for c, ch_type in enumerate(ch_types):
+            
+            # Calculate average measured phase and amplitude 
+            inds_chan = mne.pick_types(evoked.info, meg = chansel[ch_type][0], eeg = chansel[ch_type][1])
+            cplex_mean_meas[e,c] = np.mean(ampl_meas[inds_chan]*np.exp(phase_meas[inds_chan]*1j)) #/ np.mean(ampl_meas[inds_chan])
+            cplex_mean_proj[e,c] = np.mean(ampl[inds_chan]*np.exp(phase[inds_chan]*1j)) #/ np.mean(ampl[inds_chan])
+    
+            aRef = np.mean(ampl_meas[inds_chan])/ np.mean(ampl[inds_chan])
+    thetaRef = circular_diff( np.angle(np.mean(cplex_mean_meas, 0)), np.angle(np.mean(cplex_mean_proj, 0)) )
+    #aRef = np.abs(np.mean(cplex_mean_meas, 0))/np.abs(np.mean(cplex_mean_proj, 0)) # did not work for eeg
+    
+    return thetaRef, aRef
+    
+
+def compare_meas_simu_V2(entry, ev_proj, verbose=False):
+    '''
+    Compare the measured and projected signals after rereferencing
+    each signal to a global reference (average across all sensors).
+    Return single-sensor correlations coefficients between rereferenced signals.
+
+    Parameters
+    ----------
+    entry : class
+        Class for entry values
+    ev_proj : EVOKED
+        Evoked instance of the model predictions.
+
+    Returns
+    -------
+
+        
+    '''
+    
+    ampl_meas, phase_meas, ampl, phase, fft_meas, freqs, fstim, evoked = calculate_phase_ampls(entry, ev_proj, verbose=verbose)
+
+    # Create signal to be correlated (complex correlation)
+    meas = ampl_meas*np.exp(phase_meas*1j)
+    pred = ampl*np.exp((phase)*1j)       
+    R2_glob, pval_glob, MSE = calculate_corr_coef_cplx(meas, pred, evoked)
+
+    # Correlations per sensor between reconstructed measure and predicted signals
+    R2, pval, SSR, thetaRef, aRef, reref_proj, phase_shift = calculate_corr_coef_rerefSignal(ampl_meas, phase_meas, ampl, phase, fstim, evoked, ev_proj) 
+
+    return R2, pval, SSR, fft_meas, freqs, thetaRef, aRef, R2_glob, pval_glob, reref_proj, phase_shift, ampl_meas, phase_meas, ampl, phase
+    
+
+def calculate_phase_ampls(entry, ev_proj, verbose=False):
+    '''
+    Calculate the phase and amplitude of the measured and predicted data.
+
+    Parameters
+    ----------
+    entry : class
+        Class for entry values
+    ev_proj : EVOKED
+        Evoked instance of the model predictions.
+
+    Returns
+    -------
+    ampl_meas: ARRAY (size Nchannel)
+        Amplitude of measured data at the frequency of interst fstim
+    phase_meas: ARRAY (size Nchannel) 
+        Phase of measured data at the frequency of interst fstim
+    ampl: ARRAY (size Nchannel) 
+        Amplitude of predicted data at the frequency of interst fstim
+    phase: ARRAY (size Nchannel)
+        Phase of predicted data at the frequency of interst fstim
+        
+    '''
+
+    # Read measured data evoked
+    evoked = mne.read_evokeds(entry.measured, verbose=verbose)[0]
+    evoked.crop(tmin=0, tmax=2)
+    Nt = len(evoked.times); Fs = evoked.info['sfreq']
+    Nchan = len(evoked.data)
+    
+    # Calculate FFT
+    fft_meas = np.fft.fft(evoked.data, axis = 1)
+    freqs = np.fft.fftfreq(Nt, 1/Fs)
+
+    # Extract phase and amplitude at stimulation freq
+    fstim = entry.simulation_params.freq_temp
+    ind = np.nanargmin(np.abs(freqs - fstim)) # find closest freq
+    phase_meas = np.angle(fft_meas[:,ind])  
+    ampl_meas = 2*np.abs(fft_meas[:,ind])/Nt
+
+    # Calculate FFT on predicted data
+    hamm = np.hamming(Nt)
+    fft = np.fft.fft(hamm *ev_proj.data, axis = 1)
+    ampl = 2*np.abs(fft[:,ind])/Nt
+    phase = np.angle(fft[:,ind]) 
+
+    return ampl_meas, phase_meas, ampl, phase, fft_meas, freqs, fstim, evoked
+        
+def calculate_corr_coef_cplx(meas, pred, evoked):
+    '''
+    Calculate the complex correlation between measured and predicted data,
+    from the amplitude and phase.
+
+    Parameters
+    ----------
+    entry : class
+        Class for entry values
+    ev_proj : EVOKED
+        Evoked instance of the model predictions.
+
+    Returns
+    -------
+    ampl_meas: ARRAY
+        Amplitude of measured data at the frequency of interst fstim
+    phase_meas: 
+        Phase of measured data at the frequency of interst fstim
+    ampl: 
+        Amplitude of predicted data at the frequency of interst fstim
+    phase:
+        Phase of predicted data at the frequency of interst fstim
+        
+    '''
+
+    R2_glob = np.zeros(len(ch_types));  pval_glob = np.zeros(len(ch_types))
+    MSE  = np.zeros((len(evoked.data)))
+    for c, ch_type in enumerate(ch_types):
+        inds_chan = mne.pick_types(evoked.info, meg = chansel[ch_type][0], eeg = chansel[ch_type][1])
+        # Single correlation for all sensor together (no rereferencing needed) 
+        x = pred[inds_chan]
+        y = meas[inds_chan]
+        R2_glob[c], z, pval_glob[c] = complex_corr(y, x)
+
+        # Calculate MSE (normalized mean squared error)
+        res = scistats.linregress(x,y) 
+        y_fit = res.slope*x + res.intercept        
+        MSE[inds_chan] = np.sqrt( (y - y_fit)*np.conjugate(y - y_fit)/(y_fit*np.conjugate(y_fit)) ) # mse
+        
+           
+    return R2_glob, pval_glob, MSE
+
+def calculate_corr_coef_rerefSignal(ampl_meas, phase_meas, ampl, phase, fstim, evoked, ev_proj):
+    '''
+    Calculate the correlation between the reconstructed measured data at fstim
+    and the realigned predicted signal, for each sensor.
+
+    Handle multiple conditions, by calculating an average phase reference and amplitude ratio correction
+    across conditions, and realign each condition separately. The correlation is calculated after concatenating
+    all conditions
+
+    Parameters
+    ----------
+    ampl_meas: ARRAY of size Ncond*Nsensors or size Nsensors
+        Amplitude of measured data at the frequency of interst fstim
+    phase_meas: ARRAY of size Ncond*Nsensors or size Nsensors 
+        Phase of measured data at the frequency of interst fstim
+    ampl: ARRAY of size Ncond*Nsensors or size Nsensors 
+        Amplitude of predicted data at the frequency of interst fstim
+    phase: ARRAY of size Ncond*Nsensors or size Nsensors
+        Phase of predicted data at the frequency of interst fstim
+    ev_proj: EVOKED
+        Evoked instance of the model predictions.
+    fstim: DOUBLE
+        Frequency of interest.
+    evoked: instance of evoked or lists of evokeds
+        Measured data.
+    ev_proj: instance of evoked or lists of evokeds
+        Predicted data.
+
+    Returns 
+    -------
+    R2: ARRAY of shape Nsensors
+        Correlation coefficient between data and realigned predicted time series for each sensor.
+    pval: ARRAY of shape Nsensors
+        Associated p-value.
+    SSR: ARRAY of shape Nsensors
+        Associated sum of squared residuals.
+    thetaRef: ARRAY of shape Nchannel
+        Phase reference used to realigned the predicted time series. One for each channel types (MAG, GRAD, EEG).
+    aRef: ARRAY of shape Nchannel
+        Amplitude correction used to realigned the predicted time series. One for each channel types (MAG, GRAD, EEG).
+    reref_proj: ARRAY of Nsensors*Ntimes or Ncond*Nsensors*Ntimes
+        Realigned predicted time series.
+    phase_shift:  ARRAY of Nsensors or Ncond*Nsensors
+        Phase shifts between measured and predicted data, for each sensor.
+    '''
+   
+    # Store phase shift meas-proj 
+    phase_shift = circular_diff(phase_meas, phase) 
+
+    if len(np.shape(ampl_meas)) ==2 :
+        reref_proj = np.zeros((np.shape(ampl_meas)[0], np.shape(ev_proj[0].data)[0], np.shape(ev_proj[0].data)[1]))
+        data = np.zeros((np.shape(ampl_meas)[0], np.shape(ev_proj[0].data)[0], np.shape(ev_proj[0].data)[1]))
+        Nchan = len(evoked[0].data)
+    else: 
+        reref_proj = np.zeros(np.shape(ev_proj.data))
+        Nchan = len(evoked.data)
+    thetaRef = np.zeros((len(ch_types)), dtype='complex_'); aRef = np.zeros(len(ch_types))
+    R2 = np.zeros((Nchan)); pval = np.zeros((Nchan)); SSR = np.zeros((Nchan))
+
+    for c, ch_type in enumerate(ch_types):
+
+        if len(np.shape(ampl_meas)) ==2 : # if there are several conditions to concatenate
+            inds_chan = mne.pick_types(evoked[0].info, meg = chansel[ch_type][0], eeg = chansel[ch_type][1])
+            cplex_mean_meas_cd = []; cplex_mean_proj_cd = []
+            for n in range(np.shape(ampl_meas)[0]):
+                cplex_mean_meas_cd.append( np.mean(ampl_meas[n,inds_chan]*np.exp(phase_meas[n,inds_chan]*1j)) ) 
+                cplex_mean_proj_cd.append( np.mean(ampl[n,inds_chan]*np.exp(phase[n,inds_chan]*1j)) )
+            cplex_mean_meas = np.mean(cplex_mean_meas_cd); cplex_mean_proj = np.mean(cplex_mean_proj_cd)
+            aRef[c] = np.mean(np.mean(ampl_meas[:,inds_chan])/np.mean(ampl[:,inds_chan]))
+        else: # if there is one single condition
+            inds_chan = mne.pick_types(evoked.info, meg = chansel[ch_type][0], eeg = chansel[ch_type][1])
+            cplex_mean_meas = np.mean(ampl_meas[inds_chan]*np.exp(phase_meas[inds_chan]*1j)) 
+            cplex_mean_proj = np.mean(ampl[inds_chan]*np.exp(phase[inds_chan]*1j)) 
+            aRef[c] = np.mean(ampl_meas[inds_chan])/np.mean(ampl[inds_chan])
+
+        thetaRef[c] = circular_diff( np.angle(cplex_mean_meas), np.angle(cplex_mean_proj) )
+        
+        # Correlate sensor per sensor
+        for ch in inds_chan:
+            if len(np.shape(ampl_meas)) ==2 : # if there are several conditions to concatenate
+                # Reconstruct predicted data after phase-rereferencing
+                for n in range(np.shape(ampl_meas)[0]):
+                    reref_proj[n,ch] = (aRef[c]*ampl[n,ch])*np.cos(2*np.pi*fstim*ev_proj[n].times + phase[n,ch] + thetaRef[c])
+                    data[n,ch] = evoked[n].data[ch]
+                # Correlate measured with reref predicted signals
+                R2[ch], pval[ch] = scistats.spearmanr(data[:,ch].flatten(), reref_proj[:,ch].flatten())
+                SSR[ch] = np.sum((data[:,ch].flatten()-reref_proj[:,ch].flatten())**2)
+            else: 
+                # Reconstruct predicted data after phase-rereferencing
+                reref_proj[ch] = (aRef[c]*ampl[ch])*np.cos(2*np.pi*fstim*ev_proj.times + phase[ch] + thetaRef[c])
+            
+                # Correlate measured with reref predicted signals
+                R2[ch], pval[ch] = scistats.spearmanr(evoked.data[ch], reref_proj[ch])
+                SSR[ch] = np.sum((evoked.data[ch]-reref_proj[ch])**2)
+
+    return R2, pval, SSR, thetaRef, aRef, reref_proj, phase_shift
+
+def compare_meas_simu_concat(entries, ev_projs, verbose=False):
+    '''
+    Compare the measured and projected signals using complex correlations 
+    between sensors, after concatenated the different conditions.
+
+    Parameters
+    ----------
+    entries : list of class
+        List of class for entry values
+    ev_projs : EVOKED
+        List of Evoked instance for the model predictions.
+
+    Returns
+    -------
+    ampl_meas_all, phase_meas_all : array Ncond*Nsensors
+        Amplitude and phase of the measured data, for each tested condition.
+    ampl_pred_all, phase_pred_all
+        Amplitude and phase of the predicted data, for each tested condition.    
+    '''
+    if len(entries) != len(ev_projs):
+        raise ValueError('There should be the same number of entry and ev_proj.')
+    N = len(entries) # number of conditions to concatenate
+
+    # Compare measured with simulated data for each entry and projections
+    meas = np.zeros((N, len(ev_projs[0].data)), dtype='complex_')
+    pred = np.zeros((N, len(ev_projs[0].data)), dtype='complex_') 
+    ampl_meas_all = np.zeros((N, len(ev_projs[0].data)), dtype='complex_') 
+    phase_meas_all = np.zeros((N, len(ev_projs[0].data)), dtype='complex_') 
+    ampl_pred_all = np.zeros((N, len(ev_projs[0].data)), dtype='complex_') 
+    phase_pred_all = np.zeros((N, len(ev_projs[0].data)), dtype='complex_')     
+    evokeds = []
+    for i in range(N): 
+        ampl_meas, phase_meas, ampl, phase, fft_meas, freqs, fstim, evoked = calculate_phase_ampls(entries[i], ev_projs[i], verbose=verbose)
+        meas[i] = ampl_meas*np.exp(phase_meas*1j)
+        pred[i] = ampl*np.exp((phase)*1j)       
+        ampl_meas_all[i] = ampl_meas
+        phase_meas_all[i] = phase_meas
+        ampl_pred_all[i] = ampl
+        phase_pred_all[i] = phase
+        evokeds.append(evoked)
+
+    # Calculate complex R on concatenated data
+    R2_glob = np.zeros(len(ch_types));  pval_glob = np.zeros(len(ch_types))
+    MSE_all  = np.zeros((len(ev_projs[0].data)))
+    for c, ch_type in enumerate(ch_types):            
+        inds_chan = mne.pick_types(ev_projs[0].info, meg = chansel[ch_type][0], eeg = chansel[ch_type][1])
+        x = pred[:,inds_chan].flatten()
+        y = meas[:,inds_chan].flatten()
+        
+        R2_glob[c], z, pval_glob[c] = complex_corr(y, x)
+
+        # MSE
+        res = scistats.linregress(x,y) 
+        y_fit = res.slope*x + res.intercept
+        MSE = np.sqrt( (y - y_fit)*np.conjugate(y - y_fit)/(y_fit*np.conjugate(y_fit)) ) 
+
+        # Average MSE across each condition 
+        MSE_mean = np.reshape(MSE, np.shape(pred[:,inds_chan])).mean(0)
+        MSE_all[inds_chan] = MSE_mean
+
+    # Calculate R per sensor between reconstructed measured and predicted time series
+    R2, pval, SSR, thetaRef, aRef, reref_proj, phase_shift = calculate_corr_coef_rerefSignal(ampl_meas_all, phase_meas_all, ampl_pred_all, phase_pred_all, fstim, evokeds, ev_projs) 
+
+    return R2, pval, SSR, fft_meas, freqs, thetaRef, aRef, R2_glob, pval_glob, reref_proj, phase_shift, ampl_meas_all, phase_meas_all, ampl_pred_all, phase_pred_all, MSE_all
 
 # def compare_meas_simu(entry, ev_proj, ev_meas, verbose = False):
 #     '''
