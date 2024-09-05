@@ -1,5 +1,5 @@
 =======
-Toolbox
+wavesmodel
 =======
  
 These scripts aims to provide a generative model of traveling waves within retinotopic areas. 
