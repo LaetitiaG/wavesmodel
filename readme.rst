@@ -1,4 +1,6 @@
-# wavesmodel
+=======
+Toolbox
+=======
  
 These scripts aims to provide a generative model of traveling waves within retinotopic areas. 
 We show here (Grabot et al., bioRxiv) a proof-of-concept that this encoding approach is able to characterize local traveling waves in MEG-EEG data.
