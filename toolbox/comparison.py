@@ -98,10 +98,38 @@ def compare_meas_simu(entry, ev_proj, verbose=False):
     ev_proj : EVOKED
         Evoked instance of the model predictions.
 
-    Returns
+    Returns 
     -------
-
-        
+    R2: ARRAY of shape Nsensors
+        Correlation coefficient between data and realigned predicted time series for each sensor.
+    pval: ARRAY of shape Nsensors
+        Associated p-value.
+    SSR: ARRAY of shape Nsensors
+        Associated sum of squared residuals.
+    fft_meas: ARRAY (size Nsensors*Nfreq)
+        Fast Fourier Transform (FFT) spectrum of the measured data.
+    freqs: ARRAY (size Nfreq)
+        Frequency range used in the FFT.
+    thetaRef: ARRAY of shape Nchannel
+        Phase reference used to realigned the predicted time series. One for each channel types (MAG, GRAD, EEG).
+    aRef: ARRAY of shape Nchannel
+        Amplitude correction used to realigned the predicted time series. One for each channel types (MAG, GRAD, EEG).
+    R2_glob: list (size Nchannel)
+        Correlation coefficient between measured and predicted data for each channel type (mag, grad, eeg).
+    pval_glob:
+        Associated p-value.  
+    reref_proj: ARRAY of Nsensors*Ntimes or Ncond*Nsensors*Ntimes
+        Realigned predicted time series.
+    phase_shift:  ARRAY of Nsensors or Ncond*Nsensors
+        Phase shifts between measured and predicted data, for each sensor.
+    ampl_meas: ARRAY (size Nsensors)
+        Amplitude of measured data at the frequency of interst fstim
+    phase_meas: ARRAY (size Nsensors) 
+        Phase of measured data at the frequency of interst fstim
+    ampl: ARRAY (size Nsensors) 
+        Amplitude of predicted data at the frequency of interst fstim
+    phase: ARRAY (size Nsensors)
+        Phase of predicted data at the frequency of interst fstim  
     '''
     
     ampl_meas, phase_meas, ampl, phase, fft_meas, freqs, fstim, evoked = calculate_phase_ampls(entry, ev_proj, verbose=verbose)
@@ -128,7 +156,7 @@ def calculate_phase_ampls(entry, ev_proj, verbose=False):
     ev_proj : EVOKED
         Evoked instance of the model predictions.
 
-    Returns
+    Returns 
     -------
     ampl_meas: ARRAY (size Nchannel)
         Amplitude of measured data at the frequency of interst fstim
@@ -138,7 +166,14 @@ def calculate_phase_ampls(entry, ev_proj, verbose=False):
         Amplitude of predicted data at the frequency of interst fstim
     phase: ARRAY (size Nchannel)
         Phase of predicted data at the frequency of interst fstim
-        
+    fft_meas: ARRAY (size Nchannel*Nfreq)
+        Fast Fourier Transform (FFT) spectrum of the measured data.
+    freqs: ARRAY (size Nfreq)
+        Frequency range used in the FFT.
+    fstim: Float
+        Stimulation frequency (Hz).
+    evoked: Evoked instance
+        Measured data
     '''
 
     # Read measured data evoked
@@ -180,15 +215,12 @@ def calculate_corr_coef_cplx(meas, pred, evoked):
 
     Returns
     -------
-    ampl_meas: ARRAY
-        Amplitude of measured data at the frequency of interst fstim
-    phase_meas: 
-        Phase of measured data at the frequency of interst fstim
-    ampl: 
-        Amplitude of predicted data at the frequency of interst fstim
-    phase:
-        Phase of predicted data at the frequency of interst fstim
-        
+    R2_glob: list (size Nchannel)
+        Correlation coefficient between measured and predicted data for each channel type (mag, grad, eeg).
+    pval_glob:
+        Associated p-value.
+    MSE: ARRAY (size Nsensors)
+        Normalized mean squared error between measured and predicted data, for each sensor.
     '''
 
     R2_glob = np.zeros(len(ch_types));  pval_glob = np.zeros(len(ch_types))
@@ -204,8 +236,7 @@ def calculate_corr_coef_cplx(meas, pred, evoked):
         res = scistats.linregress(x,y) 
         y_fit = res.slope*x + res.intercept        
         MSE[inds_chan] = np.sqrt( (y - y_fit)*np.conjugate(y - y_fit)/(y_fit*np.conjugate(y_fit)) ) # mse
-        
-           
+                  
     return R2_glob, pval_glob, MSE
 
 
@@ -237,7 +268,7 @@ def calculate_corr_coef_rerefSignal(ampl_meas, phase_meas, ampl, phase, fstim, e
     ev_proj: instance of evoked or lists of evokeds
         Predicted data.
 
-    Returns 
+    Returns  
     -------
     R2: ARRAY of shape Nsensors
         Correlation coefficient between data and realigned predicted time series for each sensor.
@@ -316,16 +347,41 @@ def compare_meas_simu_concat(entries, ev_projs, verbose=False):
     ----------
     entries : list of class
         List of class for entry values
-    ev_projs : EVOKED
+    ev_projs : list of EVOKED
         List of Evoked instance for the model predictions.
 
     Returns
     -------
-    ampl_meas_all, phase_meas_all : array Ncond*Nsensors
+    R2: ARRAY of shape Nsensors
+        Correlation coefficient between data and realigned predicted time series for each sensor.
+    pval: ARRAY of shape Nsensors
+        Associated p-value.
+    SSR: ARRAY of shape Nsensors
+        Associated sum of squared residuals.
+    fft_meas: ARRAY (size Nsensors*Nfreq)
+        Fast Fourier Transform (FFT) spectrum of the measured data.
+    freqs: ARRAY (size Nfreq)
+        Frequency range used in the FFT.
+    thetaRef: ARRAY of shape Nchannel
+        Phase reference used to realigned the predicted time series. One for each channel types (MAG, GRAD, EEG).
+    aRef: ARRAY of shape Nchannel
+        Amplitude correction used to realigned the predicted time series. One for each channel types (MAG, GRAD, EEG).
+    R2_glob: list (size Nchannel)
+        Correlation coefficient between measured and predicted data for each channel type (mag, grad, eeg).
+    pval_glob:
+        Associated p-value.  
+    reref_proj: ARRAY of Nsensors*Ntimes or Ncond*Nsensors*Ntimes
+        Realigned predicted time series.
+    phase_shift:  ARRAY of Nsensors or Ncond*Nsensors
+        Phase shifts between measured and predicted data, for each sensor.
+    ampl_meas_all, phase_meas_all: array Ncond*Nsensors
         Amplitude and phase of the measured data, for each tested condition.
-    ampl_pred_all, phase_pred_all
+    ampl_pred_all, phase_pred_all: array Ncond*Nsensors
         Amplitude and phase of the predicted data, for each tested condition.    
+    MSE_all: array Ncond*Nsensors
+        Normalized mean squared error for each tested condition.
     '''
+    
     if len(entries) != len(ev_projs):
         raise ValueError('There should be the same number of entry and ev_proj.')
     N = len(entries) # number of conditions to concatenate
