@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue Sep  5 15:54:11 2023
+This script simulates traveling waves in V1, project the activity onto sensors, 
+and compare the predicted activity in sensors to empirical data.
+
 
 @author: laeti
 """
@@ -16,7 +19,8 @@ from toolbox.entry import Entry
 wdir = "D:/Data/wave_model/scripts_python/example_dataset/" 
 subject = 'EWTO6I'
 
-## Specify the parameters of the model you want to test within an entry object (see help for Entry object to have the details of required parameters)
+## Specify the parameters of the model you want to test within an entry object 
+# (see help for Entry object to have the details of required parameters)
 entry = Entry()
 # Screen parameters
 width = 1920 # pixels

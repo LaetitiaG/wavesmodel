@@ -13,14 +13,22 @@ class Entry:
     ----------
     measured (Path):
         Path to measured EEG .fif file.
-    freesurfer (Path): Path to freesurfer folder.
-    fwd_model (Path): Path to forward model file.
-    stim (str): Type of stimulation, of {'TRAV_OUT', 'STANDING', 'TRAV_IN'}
-    c_space (str): Type of spacial, of {'full', 'quad', 'fov'}
-    simulation_config_section (str): Section in simulation configuration file. Default is 'None'.
-    screen_config_section (str): Section in screen configuration file. Default is 'None'.
-    simulation_params (Namedtuple): Simulation parameters namedtuple.
-    screen_params (Namedtuple): Screen parameters namedtuple.
+    freesurfer (Path): 
+        Path to freesurfer folder.
+    fwd_model (Path): 
+        Path to forward model file.
+    stim (str): {'TRAV_OUT', 'STANDING', 'TRAV_IN'}
+        Type of traveling wave: traveling out (from fovea to periphery), standing or traveling in (from periphery to fovea)
+    c_space (str): {'full', 'quad', 'fov'}
+        Spatial extend for the simulation, can be either full-screen, quadrant or foveal simulation of brain activity.
+    simulation_config_section (str): 
+        Section in simulation configuration file. Default is 'None'.
+    screen_config_section (str): 
+        Section in screen configuration file. Default is 'None'.
+    simulation_params (Namedtuple): [freq_temp, freq_spatial, amplitude, phase_offset, decay, e0]
+        Simulation parameters specifying the traveling wave equations: temporal frequency (Hz), spatial frequency (cycles per mm of cortex), amplitude (A.m), phase offset (rad), decay parameter (between 0 and 1), and eccentricity for the foveal condition (DVA).
+    screen_params (Namedtuple): [width, height, distancefrom, heightcm]
+        Screen parameters specifying the width and height of the screen (in pixels) used for stimulus display, the distance of screen from participants'eyes, and the height of the screen in centimeters.
     """
     def __init__(self,
                  measured: Union[Path, str] = Path(),
