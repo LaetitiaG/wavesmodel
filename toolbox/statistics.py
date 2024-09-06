@@ -46,7 +46,7 @@ def create_R2_shuffledDistrib(mat_to_shuffle, mat_meas, N_permut=5000):
     '''
     Create a null distribution of R2 by comparing a vector and shuffled instances
     of a second vector. The permutation is done by shuffling sensors within each 
-    condition
+    condition.
 
     Parameters
     ----------

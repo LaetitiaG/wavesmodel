@@ -2,7 +2,6 @@ import numpy as np
 import mne
 import scipy.stats as scistats
 from math import sqrt, atan2, pi, floor, exp
-from numba import jit
 
 # global variables
 ch_types = ['mag', 'grad', 'eeg'] 

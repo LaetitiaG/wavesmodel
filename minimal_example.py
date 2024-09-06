@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue Sep  5 15:54:11 2023
-This script simulates traveling waves in V1, project the activity onto sensors, 
+This script simulates traveling waves in V1, project the activity onto MEG and EEG sensors, 
 and compare the predicted activity in sensors to empirical data.
 
 
