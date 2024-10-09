@@ -15,6 +15,9 @@ Depending on which package manager you use, the exact list of required packages 
 
 This code mostly build on `mne-python <https://mne.tools/stable/index.html>`_ version 1.6.0.
 
+You can run the minimal_example script to run the full pipeline. Beforehand, you will need to download an example dataset stored on Open Science Framework:
+ADD OSF ID
+
 Cite this work
 ------------------------------------
 If you use this code in your projects, please cite the following reference:
