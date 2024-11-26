@@ -15,8 +15,8 @@ from toolbox.comparison import compare_meas_simu_concat
 from toolbox.entry import Entry
 
 
-# My path TO CHANGE ACCORDINGLY
-wdir = "D:/Data/wave_model/scripts_python/example_dataset/" 
+# My path **TO CHANGE ACCORDINGLY**
+wdir = "D:/Data/wave_model/scripts_python/3_example_dataset/" 
 subject = 'EWTO6I'
 
 ## Specify the parameters of the model you want to test within an entry object 
