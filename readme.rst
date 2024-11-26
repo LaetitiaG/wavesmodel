@@ -3,7 +3,7 @@ wavesmodel
 =======
  
 These scripts aims to provide a generative model of traveling waves within retinotopic areas. 
-We show here (Grabot et al., bioRxiv) a proof-of-concept that this encoding approach is able to characterize local traveling waves in MEG-EEG data.
+We show here (Grabot et al., 2024, bioRxiv) a proof-of-concept that this encoding approach is able to characterize local traveling waves in MEG-EEG data.
 Traveling waves are first modeled using traveling waves equation mapped on the primary visual cortex. The simulated brain activity is then projected onto the sensors (MEG and EEG). The predicted activity within sensors can then be compared to empirical data. Different models testing different hypotheses on the propagation of neural activity (e.g. with different temporal or spatial frequency, or a specific direction) can be tested against each other.
 
 Getting started
