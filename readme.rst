@@ -13,16 +13,15 @@ Depending on which package manager you use, the exact list of required packages 
 - in the *environment.yml* file if you are using conda
 - in the *pyproject.toml* file if you are using poetry
 
-This code mostly build on `mne-python <https://mne.tools/stable/index.html>`_ version 1.6.0.
+This code mostly build on `mne-python <https://mne.tools/stable/index.html>`_ version 1.6.0. The code was developed and tested only on Windows.
 
-You can run the minimal_example script to run the full pipeline. Beforehand, you will need to download an example dataset stored on Open Science Framework:
-ADD OSF ID
+You can run the minimal_example script to run the full pipeline. Beforehand, you will need to download an example dataset stored on Zenodo (doi: 10.5281/zenodo.13968952).
 
 Cite this work
 ------------------------------------
 If you use this code in your projects, please cite the following reference:
 
-*Grabot L, Merholz G, Winawer J, Heeger DJ, Dugué L (2024, bioRxiv) Traveling Waves in the Human Visual Cortex: a MEG-EEG Model-Based Approach.*
+*Grabot L, Merholz G, Winawer J, Heeger DJ, Dugué L (2024) Traveling Waves in the Human Visual Cortex: an MEG-EEG Model-Based Approach. bioRxiv 2024.10.09.617389; doi: https://doi.org/10.1101/2024.10.09.617389*
 
 Acknowledgments
 ------------------------------------
