@@ -3,7 +3,7 @@ wavesmodel
 =======
  
 These scripts aims to provide a generative model of traveling waves within retinotopic areas. 
-We show here (Grabot et al., 2024, bioRxiv) a proof-of-concept that this encoding approach is able to characterize local traveling waves in MEG-EEG data.
+We show here (Grabot et al., 2025, Plos Computational Biology) a proof-of-concept that this encoding approach is able to characterize local traveling waves in MEG-EEG data.
 Traveling waves are first modeled using traveling waves equation mapped on the primary visual cortex. The simulated brain activity is then projected onto the sensors (MEG and EEG). The predicted activity within sensors can then be compared to empirical data. Different models testing different hypotheses on the propagation of neural activity (e.g. with different temporal or spatial frequency, or a specific direction) can be tested against each other.
 
 Getting started
@@ -21,7 +21,7 @@ Cite this work
 ------------------------------------
 If you use this code in your projects, please cite the following reference:
 
-*Grabot L, Merholz G, Winawer J, Heeger DJ, Dugué L (2024) Traveling Waves in the Human Visual Cortex: an MEG-EEG Model-Based Approach. bioRxiv 2024.10.09.617389; doi: https://doi.org/10.1101/2024.10.09.617389*
+*Grabot L, Merholz G, Winawer J, Heeger DJ, Dugué L (2025) Traveling Waves in the Human Visual Cortex: an MEG-EEG Model-Based Approach. PLOS Computational Biology 21(4): e1013007. https://doi.org/10.1371/journal.pcbi.1013007*
 
 Acknowledgments
 ------------------------------------
